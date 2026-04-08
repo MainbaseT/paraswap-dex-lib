@@ -8,6 +8,8 @@ import { PancakeSwapInfinity } from './pancakeswap-infinity';
 import { PancakeSwapInfinityData } from './types';
 import { PancakeSwapInfinityConfig } from './config';
 import RouterAbi from '../../abi/uniswap-v4/router.abi.json';
+import { Tokens } from '../../../tests/constants-e2e';
+import { checkPoolsLiquidity } from '../../../tests/utils';
 
 const network = Network.BSC;
 const routerAddress =
@@ -224,6 +226,31 @@ describe('PancakeSwapInfinity Integration', () => {
       expect(result.calldata).toEqual([]);
       expect(result.values).toEqual([]);
       expect(result.networkFee).toBe('0');
+    });
+  });
+
+  describe.only('getTopPoolsForToken', () => {
+    const dexKey = 'pancakeswapinfinity';
+
+    it('WBNB getTopPoolsForToken', async function () {
+      const tokenAddress = Tokens[network].WBNB.address;
+      const poolLiquidity = await dex.getTopPoolsForToken(tokenAddress, 10);
+      console.log('WBNB Top Pools:', JSON.stringify(poolLiquidity, null, 2));
+      checkPoolsLiquidity(poolLiquidity, tokenAddress, dexKey);
+    });
+
+    it.only('USDT getTopPoolsForToken', async function () {
+      const tokenAddress = Tokens[network].USDT.address;
+      const poolLiquidity = await dex.getTopPoolsForToken(tokenAddress, 10);
+      console.log('USDT Top Pools:', JSON.stringify(poolLiquidity, null, 2));
+      checkPoolsLiquidity(poolLiquidity, tokenAddress, dexKey);
+    });
+
+    it('BNB getTopPoolsForToken', async function () {
+      const tokenAddress = Tokens[network].BNB.address;
+      const poolLiquidity = await dex.getTopPoolsForToken(tokenAddress, 10);
+      console.log('BNB Top Pools:', JSON.stringify(poolLiquidity, null, 2));
+      checkPoolsLiquidity(poolLiquidity, tokenAddress, dexKey);
     });
   });
 });
