@@ -850,11 +850,13 @@ export class Bebop
         { deadline: BigInt(response.expiry) },
       ];
     } catch (e: any) {
-      const message = `requestId: ${requestId}, quoteId: ${quoteId}, error: ${e}`;
+      const message = `requestId: ${requestId}, quoteId: ${quoteId}, pair: ${srcToken.address}-${destToken.address}, error: ${e}`;
 
       this.logger.error(message);
       if (!e?.isSlippageError && !e?.isBlacklistError) {
-        this.restrict();
+        const restrictMessage =
+          e instanceof Error ? `${e.name}: ${e.message}` : 'Unknown error';
+        this.restrict(restrictMessage);
       }
       throw new Error(message);
     }
@@ -888,15 +890,6 @@ export class Bebop
     }
 
     return null;
-  }
-
-  getTokenFromAddress(address: Address): Token {
-    const bebopToken = this.tokensMap[address.toLowerCase()];
-    return {
-      address,
-      decimals: bebopToken.decimals,
-      symbol: bebopToken.ticker,
-    };
   }
 
   releaseResources(): AsyncOrSync<void> {
