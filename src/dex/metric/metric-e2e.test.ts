@@ -1,5 +1,6 @@
 import { testPriceRoute } from '../../../tests/utils-e2e';
 import { OptimalRate } from '@paraswap/core';
+import { ETHER_ADDRESS } from '../../constants';
 
 function buildMetricRoute(params: {
   network: number;
@@ -65,42 +66,100 @@ function buildMetricRoute(params: {
   } as unknown as OptimalRate;
 }
 
-// Mainnet tx 0x8a54b2ef0c985317f6e23bbe3e94009c38c4603bb69ca3e9780457e4bb145470
-// 20,000 USDC → ~8.98 WETH (zeroForOne=false)
-const mainnetRoute = buildMetricRoute({
-  network: 1,
-  blockNumber: 24843238,
-  srcToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-  srcDecimals: 6,
-  srcAmount: '20000000000',
-  destToken: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-  destDecimals: 18,
-  destAmount: '8982291463890689577',
-  pool: '0x76d7c24374aef4a36ee9a3a8c49339ccc84d0743',
-  zeroForOne: false,
-});
-
-// Base tx 0x89b1cd91b29f5bea9a8fa0fc2440407d4e9dedbf90184e0409bcd48cbfd6173c
-// 6 WETH → ~0.186 cbBTC (zeroForOne=true)
-const baseRoute = buildMetricRoute({
-  network: 8453,
-  blockNumber: 44614811,
-  srcToken: '0x4200000000000000000000000000000000000006',
-  srcDecimals: 18,
-  srcAmount: '6000000000000000000',
-  destToken: '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf',
-  destDecimals: 8,
-  destAmount: '18582243',
-  pool: '0x1300cf8460fb60c8112febe63ada84a8dd894d8a',
-  zeroForOne: true,
-});
+const BASE_WETH = '0x4200000000000000000000000000000000000006';
+const BASE_CBBTC = '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf';
+const BASE_USDC = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
 
 describe('Metric E2E', () => {
-  it('Mainnet: USDC → WETH', async () => {
-    await testPriceRoute(mainnetRoute);
-  });
+  describe('Base', () => {
+    // Base tx 0x89b1cd91b29f5bea9a8fa0fc2440407d4e9dedbf90184e0409bcd48cbfd6173c
+    // 6 WETH → ~0.186 cbBTC (zeroForOne=true)
+    const baseCbBtcShared = {
+      network: 8453,
+      blockNumber: 44614811,
+      srcDecimals: 18,
+      srcAmount: '6000000000000000000',
+      destToken: BASE_CBBTC,
+      destDecimals: 8,
+      destAmount: '18582243',
+      pool: '0x1300cf8460fb60c8112febe63ada84a8dd894d8a',
+      zeroForOne: true,
+    };
 
-  it('Base: WETH → cbBTC', async () => {
-    await testPriceRoute(baseRoute);
+    it('WETH → cbBTC', async () => {
+      const route = buildMetricRoute({
+        ...baseCbBtcShared,
+        srcToken: BASE_WETH,
+      });
+      await testPriceRoute(route);
+    });
+
+    it('ETH → cbBTC (wraps to WETH)', async () => {
+      const route = buildMetricRoute({
+        ...baseCbBtcShared,
+        srcToken: ETHER_ADDRESS,
+      });
+      await testPriceRoute(route);
+    });
+
+    // Base tx 0xc49fd6804e1d0b38324a4146edfcdd2cca0be71c328952e2a7a6aeff4cf969ac
+    // 5 WETH → ~11,029 USDC (zeroForOne=true)
+    const baseUsdcShared = {
+      network: 8453,
+      blockNumber: 44601742,
+      srcDecimals: 18,
+      srcAmount: '5000000000000000000',
+      destToken: BASE_USDC,
+      destDecimals: 6,
+      destAmount: '11029116131',
+      pool: '0xa6929e903c42a79394f09365f59e916cb0accfd9',
+      zeroForOne: true,
+    };
+
+    it('WETH → USDC', async () => {
+      const route = buildMetricRoute({
+        ...baseUsdcShared,
+        srcToken: BASE_WETH,
+      });
+      await testPriceRoute(route);
+    });
+
+    it('ETH → USDC (wraps to WETH)', async () => {
+      const route = buildMetricRoute({
+        ...baseUsdcShared,
+        srcToken: ETHER_ADDRESS,
+      });
+      await testPriceRoute(route);
+    });
+
+    // Base tx 0x9e623c0126df14b0ed63d5c2631ccff788873103d3c8d01ddda230beda761e10
+    // 1,250 USDC → ~0.572 WETH (zeroForOne=false)
+    const baseUsdcReverseShared = {
+      network: 8453,
+      blockNumber: 44495533,
+      srcToken: BASE_USDC,
+      srcDecimals: 6,
+      srcAmount: '1250000000',
+      destDecimals: 18,
+      destAmount: '572250811824233202',
+      pool: '0xa6929e903c42a79394f09365f59e916cb0accfd9',
+      zeroForOne: false,
+    };
+
+    it('USDC → WETH', async () => {
+      const route = buildMetricRoute({
+        ...baseUsdcReverseShared,
+        destToken: BASE_WETH,
+      });
+      await testPriceRoute(route);
+    });
+
+    it('USDC → ETH (unwraps WETH)', async () => {
+      const route = buildMetricRoute({
+        ...baseUsdcReverseShared,
+        destToken: ETHER_ADDRESS,
+      });
+      await testPriceRoute(route);
+    });
   });
 });
