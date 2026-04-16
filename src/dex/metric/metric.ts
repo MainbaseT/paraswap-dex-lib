@@ -19,6 +19,7 @@ import {
   PRICE_LIMIT_ONE_FOR_ZERO,
   PRICE_LIMIT_ZERO_FOR_ONE,
 } from './config';
+import { extractReturnAmountPosition } from '../../executor/utils';
 
 export class Metric
   extends SimpleExchange
@@ -73,7 +74,7 @@ export class Metric
         data.zeroForOne,
         srcAmount,
         priceLimit,
-        destAmount,
+        '1',
         deadline,
       ],
     );
@@ -83,7 +84,11 @@ export class Metric
       dexFuncHasRecipient: true,
       exchangeData: swapData,
       targetExchange: this.routerAddress,
-      returnAmountPos: undefined,
+      returnAmountPos: extractReturnAmountPosition(
+        this.routerInterface,
+        'swapExactInput',
+        'amountOut',
+      ),
     };
   }
 }
