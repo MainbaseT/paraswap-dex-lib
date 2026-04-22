@@ -605,7 +605,7 @@ export class BalancerV3EventPool extends StatefulEventSubscriber<PoolStateMap> {
             swapKind === SwapKind.GivenIn
               ? buffer.maxRedeem
               : buffer.maxWithdraw;
-          if (limit !== undefined && amount > limit) {
+          if (amount > limit) {
             return 0n;
           }
         }
@@ -806,8 +806,8 @@ export class BalancerV3EventPool extends StatefulEventSubscriber<PoolStateMap> {
           rate: poolState.erc4626Rates[tokenIndex]!,
           maxDeposit: poolState.erc4626MaxDeposit[tokenIndex]!,
           maxMint: poolState.erc4626MaxMint[tokenIndex]!,
-          maxWithdraw: poolState.erc4626MaxWithdraw?.[tokenIndex] ?? 0n,
-          maxRedeem: poolState.erc4626MaxRedeem?.[tokenIndex] ?? 0n,
+          maxWithdraw: poolState.erc4626MaxWithdraw[tokenIndex]!,
+          maxRedeem: poolState.erc4626MaxRedeem[tokenIndex]!,
         };
       }
     }
@@ -896,6 +896,8 @@ export class BalancerV3EventPool extends StatefulEventSubscriber<PoolStateMap> {
         tokens: [token.mainToken, token.underlyingToken], // staticToken & underlying
         maxDeposit: token.maxDeposit,
         maxMint: token.maxMint,
+        maxWithdraw: token.maxWithdraw,
+        maxRedeem: token.maxRedeem,
       },
     };
   }

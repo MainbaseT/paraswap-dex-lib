@@ -75,8 +75,8 @@ export type ImmutablePoolStateMap = {
 // ourselves in getSwapResult so unwrap amounts that would revert on-chain
 // produce a 0 price instead.
 export type BufferStateExt = BufferState & {
-  maxWithdraw?: bigint;
-  maxRedeem?: bigint;
+  maxWithdraw: bigint;
+  maxRedeem: bigint;
 };
 
 export type Step = {
