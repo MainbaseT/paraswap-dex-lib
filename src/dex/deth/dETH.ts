@@ -171,21 +171,22 @@ export class dETH extends SimpleExchange implements IDex<null, DexParams> {
       return [];
     }
 
+    const connectorTokens = isDETH
+      ? [
+          { address: ETHER_ADDRESS, decimals: 18 },
+          {
+            address:
+              this.dexHelper.config.data.wrappedNativeTokenAddress.toLowerCase(),
+            decimals: 18,
+          },
+        ]
+      : [{ address: this.config.wrappedToken, decimals: 18 }];
+
     return [
       {
         exchange: this.dexKey,
         address: this.config.wrappedToken,
-        connectorTokens: [
-          isEthOrWeth
-            ? {
-                address: this.config.wrappedToken,
-                decimals: 18,
-              }
-            : {
-                address: ETHER_ADDRESS,
-                decimals: 18,
-              },
-        ],
+        connectorTokens,
         liquidityUSD: UNLIMITED_USD_LIQUIDITY,
       },
     ];
