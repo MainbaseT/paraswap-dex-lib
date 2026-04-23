@@ -203,10 +203,12 @@ export class Executor03BytecodeBuilder extends ExecutorBytecodeBuilder<
       this.dexHelper.config.isWETH(swap.destToken);
 
     if (isWETHSrcUnwrap) {
+      // `swap` is the reordered swap from buildByteCode; index in the reorder
+      // matches the current DEX, swapExchangeIndex is the pre-sort original.
       const withdrawCallData = this.buildUnwrapEthCallData(
         this.getWETHAddress(curExchangeParam),
         this.erc20Interface.encodeFunctionData('withdraw', [
-          swap.swapExchanges[swapExchangeIndex].srcAmount,
+          swap.swapExchanges[index].srcAmount,
         ]),
       );
       swapCallData = hexConcat([withdrawCallData, swapCallData]);
