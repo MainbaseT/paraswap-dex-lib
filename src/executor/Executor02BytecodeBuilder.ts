@@ -88,7 +88,6 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       specialDexFlag,
       specialDexSupportsInsertFromAmount,
       swappedAmountNotPresentInExchangeData,
-      preSwapUnwrapCalldata,
       sendEthButSupportsInsertFromAmount,
     } = exchangeParam;
 
@@ -131,9 +130,10 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
         : Flag.INSERT_FROM_AMOUNT_CHECK_SRC_TOKEN_BALANCE_AFTER_SWAP; // 8 or 11
     }
 
-    // Actual srcToken is eth, because we'll unwrap weth before swap.
-    // Need to check balance, some dexes don't have 1:1 ETH -> custom_ETH rate
-    if (preSwapUnwrapCalldata || isWETHSrc) {
+    // DEX operates on native ETH; we unwrap WETH to ETH before the call, then
+    // check WETH src balance (should be 0) after. Some DEXes don't have a 1:1
+    // ETH -> custom_ETH rate.
+    if (isWETHSrc) {
       dexFlag =
         Flag.SEND_ETH_EQUAL_TO_FROM_AMOUNT_CHECK_SRC_TOKEN_BALANCE_AFTER_SWAP;
     } else if (isWETHDest) {
@@ -195,7 +195,6 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       swappedAmountNotPresentInExchangeData,
       wethAddress,
       sendEthButSupportsInsertFromAmount,
-      preSwapUnwrapCalldata,
     } = exchangeParam;
 
     const isEthSrc = isETHAddress(srcToken);
@@ -287,9 +286,10 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
           : Flag.INSERT_FROM_AMOUNT_DONT_CHECK_BALANCE_AFTER_SWAP; // 3
     }
 
-    // Actual srcToken is eth, because we'll unwrap weth before swap.
-    // Need to check balance, some dexes don't have 1:1 ETH -> custom_ETH rate
-    if (preSwapUnwrapCalldata || isWETHSrcUnwrap) {
+    // DEX operates on native ETH; we unwrap WETH to ETH before the call, then
+    // check WETH src balance (should be 0) after. Some DEXes don't have a 1:1
+    // ETH -> custom_ETH rate.
+    if (isWETHSrcUnwrap) {
       dexFlag =
         Flag.SEND_ETH_EQUAL_TO_FROM_AMOUNT_CHECK_SRC_TOKEN_BALANCE_AFTER_SWAP;
     } else if (isWETHDestWrap) {
@@ -656,13 +656,7 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       !!curExchangeParam.needUnwrapNative &&
       this.dexHelper.config.isWETH(swap.destToken);
 
-    if (curExchangeParam.preSwapUnwrapCalldata) {
-      const withdrawCallData = this.buildUnwrapEthCallData(
-        this.getWETHAddress(curExchangeParam),
-        curExchangeParam.preSwapUnwrapCalldata,
-      );
-      swapExchangeCallData = hexConcat([withdrawCallData, dexCallData]);
-    } else if (isWETHSrcUnwrap) {
+    if (isWETHSrcUnwrap) {
       const withdrawCallData = this.buildUnwrapEthCallData(
         this.getWETHAddress(curExchangeParam),
         this.erc20Interface.encodeFunctionData('withdraw', [

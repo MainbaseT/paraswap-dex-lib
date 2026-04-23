@@ -176,7 +176,6 @@ export type DexExchangeParam = {
   sendEthButSupportsInsertFromAmount?: boolean;
   specialDexSupportsInsertFromAmount?: boolean;
   swappedAmountNotPresentInExchangeData?: boolean;
-  preSwapUnwrapCalldata?: string;
   returnAmountPos?: number;
   insertFromAmountPos?: number;
   amountsPacked128?: boolean;

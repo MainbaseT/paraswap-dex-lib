@@ -212,16 +212,12 @@ export class EtherFi
 
     return {
       needWrapNative: this.needWrapNative,
+      needUnwrapNative: true,
       dexFuncHasRecipient: false,
       exchangeData: swapData,
       targetExchange: swapCallee,
       spender: swapCallee,
       swappedAmountNotPresentInExchangeData: is_eETH_dest,
-      preSwapUnwrapCalldata: isWETH_src
-        ? this.erc20Interface.encodeFunctionData(WethFunctions.withdraw, [
-            srcAmount,
-          ])
-        : undefined,
       returnAmountPos: extractReturnAmountPosition(Interface, swapFunction),
       skipApproval,
     };
