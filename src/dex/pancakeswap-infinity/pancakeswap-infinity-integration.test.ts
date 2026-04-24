@@ -268,7 +268,7 @@ describe('PancakeSwapInfinity Integration', () => {
     });
   });
 
-  describe.only('getTopPoolsForToken', () => {
+  describe('getTopPoolsForToken', () => {
     const dexKey = 'pancakeswapinfinity';
 
     it('WBNB getTopPoolsForToken', async function () {
@@ -278,7 +278,7 @@ describe('PancakeSwapInfinity Integration', () => {
       checkPoolsLiquidity(poolLiquidity, tokenAddress, dexKey);
     });
 
-    it.only('USDT getTopPoolsForToken', async function () {
+    it('USDT getTopPoolsForToken', async function () {
       const tokenAddress = Tokens[network].USDT.address;
       const poolLiquidity = await dex.getTopPoolsForToken(tokenAddress, 10);
       console.log('USDT Top Pools:', JSON.stringify(poolLiquidity, null, 2));
