@@ -14,10 +14,7 @@ import { Pool } from './types';
 import { DummyDexHelper } from '../../dex-helper';
 import { DexAdapterService } from '../../dex';
 import { GenericSwapTransactionBuilder } from '../../generic-swap-transaction-builder';
-import {
-  TenderlySimulator,
-  StateOverride,
-} from '../../../tests/tenderly-simulation';
+import { TenderlySimulator, StateOverride } from '../../tenderly-simulation';
 import { v4 as uuid } from 'uuid';
 import { assert } from 'ts-essentials';
 
