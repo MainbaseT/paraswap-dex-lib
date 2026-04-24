@@ -1,22 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import {
-  Network,
-  SwapSide,
-  ContractMethod,
-  ETHER_ADDRESS,
-} from '../../constants';
-import { OptimalRate, TxObject } from '../../types';
+import { Network, SwapSide, ContractMethod } from '../../constants';
+import { OptimalRate } from '../../types';
 import { ParaSwapVersion } from '@paraswap/core';
 import { generateConfig } from '../../config';
 import { Pool } from './types';
-import { DummyDexHelper } from '../../dex-helper';
-import { DexAdapterService } from '../../dex';
-import { GenericSwapTransactionBuilder } from '../../generic-swap-transaction-builder';
-import { TenderlySimulator, StateOverride } from '../../tenderly-simulation';
-import { v4 as uuid } from 'uuid';
-import { assert } from 'ts-essentials';
+import { testPriceRoute } from '../../../tests/utils-e2e';
 
 const network = Network.BSC;
 const dexKey = 'pancakeswapinfinity';
@@ -202,76 +192,11 @@ function buildPriceRoute(route: TestRoute): OptimalRate {
 
 describe('PancakeSwapInfinity E2E', () => {
   describe('BSC', () => {
-    const dexHelper = new DummyDexHelper(network);
-    const dexAdapterService = new DexAdapterService(dexHelper, network);
-    const transactionBuilder = new GenericSwapTransactionBuilder(
-      dexAdapterService,
-    );
-
     testRoutes.forEach(route => {
       it(`should simulate ${route.side === SwapSide.SELL ? 'SELL' : 'BUY'}: ${
         route.name
       }`, async () => {
-        const priceRoute = buildPriceRoute(route);
-        const slippage = 100n;
-        const minMaxAmount =
-          route.side === SwapSide.SELL
-            ? (BigInt(priceRoute.destAmount) * (10000n - slippage)) / 10000n
-            : (BigInt(priceRoute.srcAmount) * (10000n + slippage)) / 10000n;
-        const userAddress = TenderlySimulator.DEFAULT_OWNER;
-
-        const swapParams = (await transactionBuilder.build({
-          priceRoute,
-          minMaxAmount: minMaxAmount.toString(),
-          userAddress,
-          partnerAddress: '0x0000000000000000000000000000000000000000',
-          partnerFeePercent: '0',
-          deadline: (Math.floor(Date.now() / 1000) + 600).toString(),
-          uuid: uuid(),
-        })) as TxObject;
-
-        assert(swapParams.to !== undefined, 'Missing `to` in tx params');
-
-        const tenderlySimulator = TenderlySimulator.getInstance();
-        const stateOverride: StateOverride = {};
-        const amountToFund = BigInt(route.srcAmount) * 2n;
-
-        if (route.srcToken.toLowerCase() === ETHER_ADDRESS) {
-          // add eth balance to user
-          tenderlySimulator.addBalanceOverride(
-            stateOverride,
-            userAddress,
-            amountToFund,
-          );
-        } else {
-          await tenderlySimulator.addTokenBalanceOverride(
-            stateOverride,
-            network,
-            route.srcToken,
-            userAddress,
-            amountToFund,
-          );
-          await tenderlySimulator.addAllowanceOverride(
-            stateOverride,
-            network,
-            route.srcToken,
-            userAddress,
-            priceRoute.contractAddress,
-            amountToFund,
-          );
-        }
-
-        const { simulation } = await tenderlySimulator.simulateTransaction({
-          chainId: network,
-          from: swapParams.from,
-          to: swapParams.to,
-          data: swapParams.data,
-          value: swapParams.value,
-          blockNumber: route.blockNumber,
-          stateOverride,
-        });
-
-        expect(simulation.status).toEqual(true);
+        await testPriceRoute(buildPriceRoute(route));
       }, 120000);
     });
   });
