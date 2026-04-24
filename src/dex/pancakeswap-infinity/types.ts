@@ -24,12 +24,22 @@ export type PoolKey = {
   currency1: string;
   hooks: string;
   poolManager: string;
-  fee: number;
-  parameters: string; // bytes32
+  fee: string;
+  tickSpacing: number;
+};
+
+export type Pool = {
+  id: string;
+  key: PoolKey;
+};
+
+export type PathStep = {
+  pool: Pool;
+  tokenIn: string;
+  tokenOut: string;
+  zeroForOne: boolean;
 };
 
 export type PancakeSwapInfinityData = {
-  poolKey: PoolKey;
-  zeroForOne: boolean;
-  hookData?: string;
+  path: PathStep[];
 };

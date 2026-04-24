@@ -5,7 +5,7 @@ import { Address } from '../../types';
 import { isETHAddress } from '../../utils';
 import { NULL_ADDRESS } from '../../constants';
 import { BI_MAX_UINT128 } from '../../bigint-constants';
-import { PancakeSwapInfinityData } from './types';
+import { PancakeSwapInfinityData, PathStep } from './types';
 import RouterAbi from '../../abi/uniswap-v4/router.abi.json';
 
 const routerIface = new Interface(RouterAbi);
@@ -45,24 +45,40 @@ function encodeActions(actions: Actions[]): string {
   return ethers.utils.solidityPack(types, actions);
 }
 
-function encodePoolKeyTuple(data: PancakeSwapInfinityData): any[] {
+function getFirstStep(data: PancakeSwapInfinityData): PathStep {
+  const step = data.path[0];
+  if (!step) {
+    throw new Error('PancakeSwapInfinityData.path must have at least one step');
+  }
+  return step;
+}
+
+// CL pool parameters bytes32 layout: [tickSpacing << 16] | hooksRegistrationBitmap.
+// Hooks registration bitmap is omitted here (assumed 0) since the new data shape
+// doesn't carry it — pools with registered hook callbacks need it supplied separately.
+function encodeParameters(tickSpacing: number): string {
+  return ethers.utils.hexZeroPad(
+    ethers.utils.hexlify(BigInt(tickSpacing) << 16n),
+    32,
+  );
+}
+
+function encodePoolKeyTuple(step: PathStep): any[] {
+  const { key } = step.pool;
   return [
-    data.poolKey.currency0,
-    data.poolKey.currency1,
-    data.poolKey.hooks,
-    data.poolKey.poolManager,
-    data.poolKey.fee,
-    data.poolKey.parameters,
+    key.currency0,
+    key.currency1,
+    key.hooks,
+    key.poolManager,
+    key.fee,
+    encodeParameters(key.tickSpacing),
   ];
 }
 
-function getPoolCurrencies(data: PancakeSwapInfinityData) {
-  const srcCurrency = data.zeroForOne
-    ? data.poolKey.currency0
-    : data.poolKey.currency1;
-  const destCurrency = data.zeroForOne
-    ? data.poolKey.currency1
-    : data.poolKey.currency0;
+function getPoolCurrencies(step: PathStep) {
+  const { key } = step.pool;
+  const srcCurrency = step.zeroForOne ? key.currency0 : key.currency1;
+  const destCurrency = step.zeroForOne ? key.currency1 : key.currency0;
   return { srcCurrency, destCurrency };
 }
 
@@ -76,12 +92,12 @@ function isWethCurrency(currency: string, wethAddr: string): boolean {
 
 function encodeSettle(
   srcToken: string,
-  data: PancakeSwapInfinityData,
+  step: PathStep,
   wethAddr: string,
 ): string {
   const isEthSrc = isETHAddress(srcToken);
   const isWethSrc = srcToken.toLowerCase() === wethAddr;
-  const { srcCurrency } = getPoolCurrencies(data);
+  const { srcCurrency } = getPoolCurrencies(step);
   const isWethPool = isWethCurrency(srcCurrency, wethAddr);
   const isEthPool = isNativeCurrency(srcCurrency);
 
@@ -100,13 +116,13 @@ function encodeSettle(
 
 function encodeTake(
   destToken: string,
-  data: PancakeSwapInfinityData,
+  step: PathStep,
   recipient: string,
   wethAddr: string,
 ): string {
   const isEthDest = isETHAddress(destToken);
   const isWethDest = destToken.toLowerCase() === wethAddr;
-  const { destCurrency } = getPoolCurrencies(data);
+  const { destCurrency } = getPoolCurrencies(step);
   const isWethPool = isWethCurrency(destCurrency, wethAddr);
   const isEthPool = isNativeCurrency(destCurrency);
 
@@ -131,7 +147,7 @@ function encodeTake(
 function encodeInputForExecute(
   srcToken: Address,
   destToken: Address,
-  data: PancakeSwapInfinityData,
+  step: PathStep,
   side: SwapSide,
   recipient: string,
   encodedActions: string,
@@ -143,7 +159,7 @@ function encodeInputForExecute(
   const isWethSrc = srcToken.toLowerCase() === wethAddr;
   const isWethDest = destToken.toLowerCase() === wethAddr;
 
-  const { srcCurrency, destCurrency } = getPoolCurrencies(data);
+  const { srcCurrency, destCurrency } = getPoolCurrencies(step);
   const isWethPoolForSrc = isWethCurrency(srcCurrency, wethAddr);
   const isEthPoolForSrc = isNativeCurrency(srcCurrency);
   const isWethPoolForDest = isWethCurrency(destCurrency, wethAddr);
@@ -254,6 +270,8 @@ export function swapExactInputSingleCalldata(
   recipient: Address,
   weth: Address,
 ): string {
+  const step = getFirstStep(data);
+
   const actions = encodeActions([
     Actions.SWAP_EXACT_IN_SINGLE,
     Actions.SETTLE,
@@ -266,22 +284,22 @@ export function swapExactInputSingleCalldata(
     ],
     [
       [
-        encodePoolKeyTuple(data),
-        data.zeroForOne,
+        encodePoolKeyTuple(step),
+        step.zeroForOne,
         amountIn,
         amountOutMinimum,
-        data.hookData ?? '0x',
+        '0x',
       ],
     ],
   );
 
-  const settle = encodeSettle(srcToken, data, weth);
-  const take = encodeTake(destToken, data, recipient, weth);
+  const settle = encodeSettle(srcToken, step, weth);
+  const take = encodeTake(destToken, step, recipient, weth);
 
   return encodeInputForExecute(
     srcToken,
     destToken,
-    data,
+    step,
     SwapSide.SELL,
     recipient,
     actions,
@@ -299,6 +317,8 @@ export function swapExactOutputSingleCalldata(
   recipient: Address,
   weth: Address,
 ): string {
+  const step = getFirstStep(data);
+
   const actions = encodeActions([
     Actions.SWAP_EXACT_OUT_SINGLE,
     Actions.SETTLE,
@@ -311,22 +331,22 @@ export function swapExactOutputSingleCalldata(
     ],
     [
       [
-        encodePoolKeyTuple(data),
-        data.zeroForOne,
+        encodePoolKeyTuple(step),
+        step.zeroForOne,
         amountOut,
         BI_MAX_UINT128,
-        data.hookData ?? '0x',
+        '0x',
       ],
     ],
   );
 
-  const settle = encodeSettle(srcToken, data, weth);
-  const take = encodeTake(destToken, data, recipient, weth);
+  const settle = encodeSettle(srcToken, step, weth);
+  const take = encodeTake(destToken, step, recipient, weth);
 
   return encodeInputForExecute(
     srcToken,
     destToken,
-    data,
+    step,
     SwapSide.BUY,
     recipient,
     actions,

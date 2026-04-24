@@ -5,7 +5,7 @@ import { Interface } from '@ethersproject/abi';
 import { SwapSide, Network } from '../../constants';
 import { DummyDexHelper } from '../../dex-helper/index';
 import { PancakeSwapInfinity } from './pancakeswap-infinity';
-import { PancakeSwapInfinityData } from './types';
+import { PancakeSwapInfinityData, Pool } from './types';
 import { PancakeSwapInfinityConfig } from './config';
 import RouterAbi from '../../abi/uniswap-v4/router.abi.json';
 import { Tokens } from '../../../tests/constants-e2e';
@@ -17,25 +17,29 @@ const routerAddress =
 const routerIface = new Interface(RouterAbi);
 
 // ERC20/ERC20 pool (no native currency)
-const poolKey = {
-  currency0: '0x55d398326f99059ff775485246999027b3197955',
-  currency1: '0x7ec43cf65f1663f820427c62a5780b8f2e25593a',
-  hooks: '0x9a9b5331ce8d74b2b721291d57de696e878353fd',
-  poolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b',
-  fee: 67,
-  parameters:
-    '0x00000000000000000000000000000000000000000000000000000000000a0055',
+const pool: Pool = {
+  id: '0x0000000000000000000000000000000000000000000000000000000000000001',
+  key: {
+    currency0: '0x55d398326f99059ff775485246999027b3197955',
+    currency1: '0x7ec43cf65f1663f820427c62a5780b8f2e25593a',
+    hooks: '0x9a9b5331ce8d74b2b721291d57de696e878353fd',
+    poolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b',
+    fee: '67',
+    tickSpacing: 10,
+  },
 };
 
 // Native BNB / CAKE pool (currency0 = address(0))
-const nativePoolKey = {
-  currency0: '0x0000000000000000000000000000000000000000',
-  currency1: '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
-  hooks: '0x0000000000000000000000000000000000000000',
-  poolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b',
-  fee: 335,
-  parameters:
-    '0x0000000000000000000000000000000000000000000000000000000000010000',
+const nativePool: Pool = {
+  id: '0x0000000000000000000000000000000000000000000000000000000000000002',
+  key: {
+    currency0: '0x0000000000000000000000000000000000000000',
+    currency1: '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
+    hooks: '0x0000000000000000000000000000000000000000',
+    poolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b',
+    fee: '335',
+    tickSpacing: 1,
+  },
 };
 
 describe('PancakeSwapInfinity Integration', () => {
@@ -54,9 +58,14 @@ describe('PancakeSwapInfinity Integration', () => {
       const recipient = '0x0000000000000000000000000000000000000001';
 
       const data: PancakeSwapInfinityData = {
-        poolKey,
-        zeroForOne: false,
-        hookData: '0x',
+        path: [
+          {
+            pool,
+            tokenIn: srcToken,
+            tokenOut: destToken,
+            zeroForOne: false,
+          },
+        ],
       };
 
       const result = dex.getDexParam(
@@ -96,8 +105,14 @@ describe('PancakeSwapInfinity Integration', () => {
       const recipient = '0x0000000000000000000000000000000000000001';
 
       const data: PancakeSwapInfinityData = {
-        poolKey,
-        zeroForOne: false,
+        path: [
+          {
+            pool,
+            tokenIn: srcToken,
+            tokenOut: destToken,
+            zeroForOne: false,
+          },
+        ],
       };
 
       const result = dex.getDexParam(
@@ -126,8 +141,14 @@ describe('PancakeSwapInfinity Integration', () => {
       const destToken = '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82';
 
       const data: PancakeSwapInfinityData = {
-        poolKey: nativePoolKey,
-        zeroForOne: true,
+        path: [
+          {
+            pool: nativePool,
+            tokenIn: ethAddress,
+            tokenOut: destToken,
+            zeroForOne: true,
+          },
+        ],
       };
 
       const result = dex.getDexParam(
@@ -158,8 +179,14 @@ describe('PancakeSwapInfinity Integration', () => {
       const ethAddress = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
       const data: PancakeSwapInfinityData = {
-        poolKey: nativePoolKey,
-        zeroForOne: false,
+        path: [
+          {
+            pool: nativePool,
+            tokenIn: srcToken,
+            tokenOut: ethAddress,
+            zeroForOne: false,
+          },
+        ],
       };
 
       const result = dex.getDexParam(
@@ -187,8 +214,14 @@ describe('PancakeSwapInfinity Integration', () => {
   describe('getAdapterParam', () => {
     it('should return stub with correct targetExchange', () => {
       const data: PancakeSwapInfinityData = {
-        poolKey,
-        zeroForOne: false,
+        path: [
+          {
+            pool,
+            tokenIn: '0x55d398326f99059ff775485246999027b3197955',
+            tokenOut: '0x7ec43cf65f1663f820427c62a5780b8f2e25593a',
+            zeroForOne: false,
+          },
+        ],
       };
 
       const result = dex.getAdapterParam(
@@ -209,8 +242,14 @@ describe('PancakeSwapInfinity Integration', () => {
   describe('getSimpleParam', () => {
     it('should return empty stub', async () => {
       const data: PancakeSwapInfinityData = {
-        poolKey,
-        zeroForOne: false,
+        path: [
+          {
+            pool,
+            tokenIn: '0x55d398326f99059ff775485246999027b3197955',
+            tokenOut: '0x7ec43cf65f1663f820427c62a5780b8f2e25593a',
+            zeroForOne: false,
+          },
+        ],
       };
 
       const result = await dex.getSimpleParam(
