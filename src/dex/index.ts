@@ -99,6 +99,7 @@ import { BlackholeCL } from './algebra-integral/forks/blackhole-cl';
 import { dETH } from './deth/dETH';
 import { Cap } from './cap/cap';
 import { PancakeSwapInfinity } from './pancakeswap-infinity/pancakeswap-infinity';
+import { Metric } from './metric/metric';
 
 const LegacyDexes = [
   CurveV2,
@@ -111,6 +112,7 @@ const LegacyDexes = [
   AugustusRFQOrder,
   EtherFi,
   PancakeSwapInfinity,
+  Metric,
 ];
 
 const Dexes = [
