@@ -53,9 +53,21 @@ function getFirstStep(data: PancakeSwapInfinityData): PathStep {
   return step;
 }
 
-// CL pool parameters bytes32 layout: [tickSpacing << 16] | hooksRegistrationBitmap.
-// Hooks registration bitmap is omitted here (assumed 0) since the new data shape
-// doesn't carry it — pools with registered hook callbacks need it supplied separately.
+// CL pool `parameters` bytes32 layout:
+//   bits [0:15]  — hooks registration bitmap (uint16), must match what the
+//                  hook contract self-registers at pool init
+//   bits [16:39] — tickSpacing (int24)
+//   bits [40:]   — reserved / zero for CL pools
+//
+// WARNING — incorrect for pools with hook callbacks registered:
+// The new PancakeSwapInfinityData shape carries only `tickSpacing`, not the
+// hooks registration bitmap, so we zero out bits [0:15]. For pools where
+// `hooks == address(0)` (or a hook contract that registers no callbacks)
+// the bitmap is 0 and this is correct. For any pool with registered hook
+// callbacks, the produced `parameters` differs from the on-chain value,
+// which changes `poolId = keccak256(poolKey)` and causes the swap to revert
+// (`PoolNotInitialized`). Fix requires either extending the input shape
+// with `hooksRegistration`, or reading the bitmap from the hook contract.
 function encodeParameters(tickSpacing: number): string {
   return ethers.utils.hexZeroPad(
     ethers.utils.hexlify(BigInt(tickSpacing) << 16n),
