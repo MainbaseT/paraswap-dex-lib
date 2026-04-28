@@ -292,12 +292,11 @@ export class GenericSwapTransactionBuilder {
       bytecode,
     ];
 
-    let method: ContractMethodV6 = isSell
-      ? ContractMethod.swapExactAmountIn
-      : ContractMethod.swapExactAmountOut;
-
     const encoder = (...params: any[]) =>
-      this.augustusV6Interface.encodeFunctionData(method, params);
+      this.augustusV6Interface.encodeFunctionData(
+        priceRoute.contractMethod,
+        params,
+      );
 
     return {
       encoder,
