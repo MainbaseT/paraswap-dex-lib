@@ -170,6 +170,12 @@ export interface IDexPricing<ExchangeData> {
   // event base support for this Dex
   readonly isStatePollingDex?: boolean;
 
+  // Set to true if this DEX's swaps can revert on-chain even after a good price
+  // (e.g. firm-quote / PMM venues). During pricing the router may attach a
+  // revertable fallback alternative to this exchange so the swap degrades
+  // gracefully instead of reverting the whole transaction.
+  readonly needsFallback?: boolean;
+
   // Returns list of pool identifiers that can be used
   // for a given swap. poolIdentifiers must be unique
   // across DEXes. It is recommended to use

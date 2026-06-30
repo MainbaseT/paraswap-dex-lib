@@ -100,10 +100,28 @@ export class ExecutorDetector {
       this.routeExecutionTypeToExecutorMap[priceRoute.side][routeExecutionType];
 
     if (executorName) {
+      // Revertable fallback groups are only implemented in Executor01. Fail
+      // loudly if a route carrying a fallback would be routed elsewhere
+      // (Executor02 branching / Executor03 buy-side are not ported yet).
+      if (executorName !== Executors.ONE && this.routeHasFallback(priceRoute)) {
+        throw new Error(
+          'Revertable fallback groups are only supported on Executor01',
+        );
+      }
       return executorName;
     }
 
     throw new Error(`${executorName} is not implemented`);
+  }
+
+  private routeHasFallback(priceRoute: OptimalRate): boolean {
+    return priceRoute.bestRoute.some(route =>
+      route.swaps.some(swap =>
+        swap.swapExchanges.some(
+          se => !!(se as { fallback?: unknown }).fallback,
+        ),
+      ),
+    );
   }
 
   getAddress(executorName: Executors): Address {

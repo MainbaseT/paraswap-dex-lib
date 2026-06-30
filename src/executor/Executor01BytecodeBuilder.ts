@@ -4,7 +4,11 @@ import { OptimalRate } from '@paraswap/core';
 import { isETHAddress } from '../utils';
 import { DepositWithdrawReturn } from '../dex/weth/types';
 import { Executors, Flag, SpecialDex } from './types';
-import { BYTES_64_LENGTH, DEFAULT_RETURN_AMOUNT_POS } from './constants';
+import {
+  BYTES_64_LENGTH,
+  DEFAULT_RETURN_AMOUNT_POS,
+  ZEROS_20_BYTES,
+} from './constants';
 import {
   DexCallDataParams,
   ExecutorBytecodeBuilder,
@@ -377,6 +381,62 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
     return swapCallData;
   }
 
+  /**
+   * Build a revertable fallback group (Style 2): a special-dex step (0xFF) whose calldata payload is
+   * [tryLen(4)][fallbackLen(4)][try-block][fallback-block]. The try-block is the primary exchange's
+   * per-swap calldata; the fallback-block is the alternative's, built by substituting the fallback
+   * param at this hop and recomputing its flags. Executor01 runs the try-block in a self-call and,
+   * on revert, runs the fallback-block from the original pre-group input.
+   */
+  protected buildRevertableGroup(
+    params: SingleSwapCallDataParams<Executor01SingleSwapCallDataParams>,
+  ): string {
+    const { priceRoute, index, exchangeParams, maybeWethCallData } = params;
+    const fallbackParam = exchangeParams[index].fallbackParam;
+
+    // Defensive: only reachable when a fallback is present.
+    if (!fallbackParam) {
+      return this.buildSingleSwapCallData(params);
+    }
+
+    // try-block: the primary's normal per-swap calldata (approve/wrap/swap, contiguous).
+    const tryBlock = this.buildSingleSwapCallData(params);
+
+    // fallback-block: substitute the fallback param at this hop and recompute flags for it.
+    const fallbackExchangeParams = exchangeParams.slice();
+    fallbackExchangeParams[index] = fallbackParam;
+    const fallbackFlags = this.buildFlags(
+      priceRoute,
+      fallbackExchangeParams,
+      maybeWethCallData,
+    );
+    const fallbackBlock = this.buildSingleSwapCallData({
+      ...params,
+      exchangeParams: fallbackExchangeParams,
+      flags: fallbackFlags,
+    });
+
+    // payload = [tryLen(4)][fallbackLen(4)][try-block][fallback-block]
+    const payload = hexConcat([
+      hexZeroPad(hexlify(hexDataLength(tryBlock)), 4),
+      hexZeroPad(hexlify(hexDataLength(fallbackBlock)), 4),
+      tryBlock,
+      fallbackBlock,
+    ]);
+
+    // Standard metadata packing; specialDexFlag = 0xFF marks the group. target/flag unused.
+    return this.buildCallData(
+      ZEROS_20_BYTES,
+      payload,
+      0, // fromAmountPos
+      0, // destTokenPos
+      SpecialDex.REVERTABLE_FALLBACK_GROUP,
+      Flag.DONT_INSERT_FROM_AMOUNT_DONT_CHECK_BALANCE_AFTER_SWAP,
+      0, // toAmountPos
+      0, // returnAmountPos (unused by the group branch)
+    );
+  }
+
   protected buildDexCallData(
     params: DexCallDataParams<Executor01DexCallDataParams>,
   ): string {
@@ -465,21 +525,20 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       maybeWethCallData,
     );
 
-    let swapsCalldata = exchangeParams.reduce<string>(
-      (acc, ep, index) =>
-        hexConcat([
-          acc,
-          this.buildSingleSwapCallData({
-            priceRoute,
-            exchangeParams,
-            index,
-            flags,
-            sender,
-            maybeWethCallData,
-          }),
-        ]),
-      '0x',
-    );
+    let swapsCalldata = exchangeParams.reduce<string>((acc, ep, index) => {
+      const callDataParams = {
+        priceRoute,
+        exchangeParams,
+        index,
+        flags,
+        sender,
+        maybeWethCallData,
+      };
+      const stepCallData = ep.fallbackParam
+        ? this.buildRevertableGroup(callDataParams)
+        : this.buildSingleSwapCallData(callDataParams);
+      return hexConcat([acc, stepCallData]);
+    }, '0x');
 
     if (
       !exchangeParams[exchangeParams.length - 1].dexFuncHasRecipient &&

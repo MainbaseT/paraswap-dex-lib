@@ -76,6 +76,9 @@ export class Dexalot
   readonly hasConstantPriceLargeAmounts = false;
   readonly needWrapNative = false;
   readonly isFeeOnTransferSupported = false;
+  // Firm-quote venue: a quote can revert on-chain, so the router may attach a
+  // revertable fallback alternative during pricing.
+  readonly needsFallback = true;
   private rateFetcher: RateFetcher;
 
   private dexalotAuthToken: string;
