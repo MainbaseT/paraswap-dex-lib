@@ -100,13 +100,17 @@ export class ExecutorDetector {
       this.routeExecutionTypeToExecutorMap[priceRoute.side][routeExecutionType];
 
     if (executorName) {
-      // Revertable fallback groups are only implemented in Executor01. Fail
-      // loudly if a route carrying a fallback would be routed elsewhere
-      // (Executor02 branching / Executor03 buy-side are not ported yet).
+      // Revertable fallback groups are only implemented in Executor01. Warn if a
+      // route carrying a fallback would be routed elsewhere (Executor02 branching
+      // / Executor03 buy-side are not ported yet) — the fallback will be ignored
+      // by those builders rather than encoded.
       if (executorName !== Executors.ONE && this.routeHasFallback(priceRoute)) {
-        throw new Error(
-          'Revertable fallback groups are only supported on Executor01',
-        );
+        this.dexHelper
+          .getLogger('ExecutorDetector')
+          .warn(
+            `Route carries a revertable fallback but maps to ${executorName}; ` +
+              `fallback groups are only supported on Executor01 and will be ignored.`,
+          );
       }
       return executorName;
     }
