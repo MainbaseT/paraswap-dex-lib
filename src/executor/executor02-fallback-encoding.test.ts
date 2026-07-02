@@ -77,4 +77,27 @@ describe('Executor02BytecodeBuilder revertable fallback group', () => {
     const blocks = payload.slice(16, 16 + (tryLen + fallbackLen) * 2);
     expect(blocks).toContain('1111111111111111111111111111111111111111');
   });
+
+  it('encodes a 0xFF group step for a split member (vertical-branch path)', () => {
+    // The first swap (SUSHI -> ETH) is split across two exchanges: flat param
+    // indices 0 and 1. Attach a fallback to member 0.
+    const params = primary.map(p => ({ ...p }));
+    params[0].fallbackParam = {
+      ...primary[0],
+      targetExchange: '0x2222222222222222222222222222222222222222',
+    };
+
+    const grouped = builder.buildByteCode(route, params, NULL_ADDRESS, weth);
+    const match = grouped.replace('0x', '').match(GROUP_STEP_RE);
+    expect(match).not.toBeNull();
+
+    // Inside a path the wrapper does the threading: flag must be 0.
+    const [, , , flagHex] = match!;
+    expect(parseInt(flagHex, 16)).toBe(0);
+
+    // The fallback block encodes the substituted target.
+    expect(grouped.replace('0x', '')).toContain(
+      '2222222222222222222222222222222222222222',
+    );
+  });
 });

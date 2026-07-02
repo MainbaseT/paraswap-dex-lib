@@ -605,78 +605,40 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
     );
   }
 
-  // Resolve the flat exchange-param index for a swapExchange (same identity-based
-  // flattening as buildSingleSwapExchangeCallData).
-  private getFlatExchangeParamIndex(
-    priceRoute: OptimalRate,
-    swapExchange: OptimalSwapExchange<any>,
-  ): number {
-    let exchangeParamIndex = 0;
-    let tempExchangeParamIndex = 0;
-
-    priceRoute.bestRoute.map(route =>
-      route.swaps.map(curSwap => {
-        curSwap.swapExchanges.map(se => {
-          if (Object.is(se, swapExchange)) {
-            exchangeParamIndex = tempExchangeParamIndex;
-          }
-          tempExchangeParamIndex++;
-        });
-      }),
-    );
-
-    return exchangeParamIndex;
-  }
-
   /**
-   * Build a revertable fallback group (specialDex 0xFF) for a single-exchange swap.
-   * The step's calldata payload is [28-byte padding][tryLen(4)][fallbackLen(4)]
-   * [try-block][fallback-block]; each block is the per-exchange unit (approve/wrap/
-   * swap) built by buildSingleSwapExchangeCallData. On-chain, Executor02 runs the
-   * try-block in a self-call and, on revert, runs the fallback-block; the running
-   * amount is threaded via the group step's balance check (destTokenPos + flag),
-   * exactly like the vertical-branching wrapper.
+   * Wrap an already-assembled per-exchange unit in a revertable fallback group
+   * (specialDex 0xFF). The step's calldata payload is [28-byte padding]
+   * [tryLen(4)][fallbackLen(4)][try-block][fallback-block]; the try-block is the
+   * unit as it would have run inline, the fallback-block is the alternative's
+   * unit. On-chain, Executor02 runs the try-block in a self-call and, on revert,
+   * runs the fallback-block from the same input.
+   *
+   * Threading: when the group sits directly in a horizontal sequence
+   * (insidePath = false) it must thread the running amount to the next step, so
+   * it uses the vertical-branching wrapper's flag/destTokenPos semantics. When
+   * it is a member of a split (insidePath = true), the vertical-branching
+   * wrapper above it does the threading, so the group skips the balance check.
    */
-  private buildRevertableGroupCallData(
+  private wrapInRevertableGroup(
     priceRoute: OptimalRate,
     routeIndex: number,
     swapIndex: number,
     swapExchangeIndex: number,
     exchangeParams: DexExchangeBuildParam[],
-    flags: { approves: Flag[]; dexes: Flag[]; wrap: Flag },
-    addedWrapToSwapExchangeMap: { [key: string]: boolean },
+    exchangeParamIndex: number,
+    tryBlock: string,
     allowToAddWrap: boolean,
     prevBranchWasWrapped: boolean,
-    unwrapToSwapMap: { [key: string]: boolean },
+    insidePath: boolean,
     maybeWethCallData?: DepositWithdrawReturn,
+    applyVerticalBranching?: boolean,
   ): string {
     const swap = priceRoute.bestRoute[routeIndex].swaps[swapIndex];
-    const swapExchange = swap.swapExchanges[swapExchangeIndex];
-    const exchangeParamIndex = this.getFlatExchangeParamIndex(
-      priceRoute,
-      swapExchange,
-    );
     const fallbackParam = exchangeParams[exchangeParamIndex].fallbackParam!;
 
-    // try-block: the primary's per-exchange unit, without any wrapper metadata.
-    const tryBlock = this.buildSingleSwapExchangeCallData(
-      priceRoute,
-      routeIndex,
-      swapIndex,
-      swapExchangeIndex,
-      exchangeParams,
-      flags,
-      addedWrapToSwapExchangeMap,
-      allowToAddWrap,
-      prevBranchWasWrapped,
-      unwrapToSwapMap,
-      maybeWethCallData,
-      false, // addMultiSwapMetadata
-      false, // applyVerticalBranching
-    );
-
     // fallback-block: substitute the fallback param at this hop and recompute
-    // flags for it. Fresh wrap maps: the fallback is an independent alternative.
+    // flags for it. Fresh wrap maps: the fallback is an independent alternative
+    // whose own wrap/approve must be encoded inside its block.
     const fallbackExchangeParams = exchangeParams.slice();
     fallbackExchangeParams[exchangeParamIndex] = fallbackParam;
     const fallbackFlags = this.buildFlags(
@@ -696,8 +658,9 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       prevBranchWasWrapped,
       {},
       maybeWethCallData,
-      false, // addMultiSwapMetadata
-      false, // applyVerticalBranching
+      false, // addMultiSwapMetadata — the path metadata wraps the group, not the block
+      applyVerticalBranching,
+      true, // disableRevertableGroup — never nest
     );
 
     // payload = [padding(28)][tryLen(4)][fallbackLen(4)][try][fallback]
@@ -709,14 +672,15 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       fallbackBlock,
     ]);
 
-    // Same threading semantics as the vertical-branching wrapper.
-    const flag = this.buildVerticalBranchingFlag(
-      priceRoute,
-      swap,
-      exchangeParams,
-      routeIndex,
-      swapIndex,
-    );
+    const flag = insidePath
+      ? Flag.DONT_INSERT_FROM_AMOUNT_DONT_CHECK_BALANCE_AFTER_SWAP // 0
+      : this.buildVerticalBranchingFlag(
+          priceRoute,
+          swap,
+          exchangeParams,
+          routeIndex,
+          swapIndex,
+        );
 
     // Locate the dest token in the payload for the post-group balance check
     // (append it if absent — trailing bytes after the blocks are ignored on-chain).
@@ -772,6 +736,7 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
     maybeWethCallData?: DepositWithdrawReturn,
     addMultiSwapMetadata?: boolean,
     applyVerticalBranching?: boolean,
+    disableRevertableGroup = false,
   ): string {
     const isSimpleSwap =
       priceRoute.bestRoute.length === 1 &&
@@ -1061,6 +1026,38 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
         swapExchangeCallData,
         finalSpecialFlagCalldata,
       ]);
+    }
+
+    const fallbackParam = curExchangeParam.fallbackParam;
+    if (
+      !disableRevertableGroup &&
+      fallbackParam &&
+      // Shared-wrap hazard: for ETH-src split members the wrap calldata may be
+      // shared across sibling branches; rolling it back with a failed try would
+      // strand the siblings — run those plain.
+      !(addMultiSwapMetadata && isETHAddress(swap.srcToken)) &&
+      // Mixed wrap-ness on ETH dest would make the group's threading balance
+      // check read the wrong token (WETH vs ETH) — plain swap is safer.
+      !(
+        isETHAddress(swap.destToken) &&
+        Boolean(curExchangeParam.needWrapNative) !==
+          Boolean(fallbackParam.needWrapNative)
+      )
+    ) {
+      swapExchangeCallData = this.wrapInRevertableGroup(
+        priceRoute,
+        routeIndex,
+        swapIndex,
+        swapExchangeIndex,
+        exchangeParams,
+        exchangeParamIndex,
+        swapExchangeCallData,
+        allowToAddWrap,
+        prevBranchWasWrapped,
+        !!addMultiSwapMetadata,
+        maybeWethCallData,
+        applyVerticalBranching,
+      );
     }
 
     if (addMultiSwapMetadata) {
@@ -1454,55 +1451,23 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
 
     let swapCallData = swapExchanges.reduce(
       (acc, swapExchange, swapExchangeIndex) => {
-        const curExchangeParam =
-          exchangeParams[
-            this.getFlatExchangeParamIndex(priceRoute, swapExchange)
-          ];
-
-        // Revertable fallback group — v1 scope: single-exchange (100%) swaps only.
-        // Skip when dest is ETH and primary/fallback disagree on needWrapNative:
-        // the post-group balance check would read the wrong token (WETH vs ETH),
-        // so a plain swap is safer than mis-threaded amounts.
-        const useRevertableGroup =
-          swapExchanges.length === 1 &&
-          !!curExchangeParam?.fallbackParam &&
-          !(
-            isETHAddress(swap.destToken) &&
-            Boolean(curExchangeParam.needWrapNative) !==
-              Boolean(curExchangeParam.fallbackParam.needWrapNative)
-          );
-
         return hexConcat([
           acc,
-          useRevertableGroup
-            ? this.buildRevertableGroupCallData(
-                priceRoute,
-                routeIndex,
-                swapIndex,
-                swapExchangeIndex,
-                exchangeParams,
-                flags,
-                wrapToSwapExchangeMap,
-                !wrapToSwapMap[swapIndex - 1],
-                wrapToSwapMap[swapIndex - 1],
-                unwrapToSwapMap,
-                maybeWethCallData,
-              )
-            : this.buildSingleSwapExchangeCallData(
-                priceRoute,
-                routeIndex,
-                swapIndex,
-                swapExchangeIndex,
-                exchangeParams,
-                flags,
-                wrapToSwapExchangeMap,
-                !wrapToSwapMap[swapIndex - 1],
-                wrapToSwapMap[swapIndex - 1],
-                unwrapToSwapMap,
-                maybeWethCallData,
-                swap.swapExchanges.length > 1,
-                applyVerticalBranching,
-              ),
+          this.buildSingleSwapExchangeCallData(
+            priceRoute,
+            routeIndex,
+            swapIndex,
+            swapExchangeIndex,
+            exchangeParams,
+            flags,
+            wrapToSwapExchangeMap,
+            !wrapToSwapMap[swapIndex - 1],
+            wrapToSwapMap[swapIndex - 1],
+            unwrapToSwapMap,
+            maybeWethCallData,
+            swap.swapExchanges.length > 1,
+            applyVerticalBranching,
+          ),
         ]);
       },
       '0x',
