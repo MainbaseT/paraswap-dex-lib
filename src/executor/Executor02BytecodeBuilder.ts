@@ -630,10 +630,12 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
     allowToAddWrap: boolean,
     prevBranchWasWrapped: boolean,
     insidePath: boolean,
+    wrapAddedInsideTry: boolean,
     maybeWethCallData?: DepositWithdrawReturn,
     applyVerticalBranching?: boolean,
   ): string {
     const swap = priceRoute.bestRoute[routeIndex].swaps[swapIndex];
+    const swapExchange = swap.swapExchanges[swapExchangeIndex];
     const fallbackParam = exchangeParams[exchangeParamIndex].fallbackParam!;
 
     // fallback-block: substitute the fallback param at this hop and recompute
@@ -646,7 +648,7 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       fallbackExchangeParams,
       maybeWethCallData,
     );
-    const fallbackBlock = this.buildSingleSwapExchangeCallData(
+    let fallbackBlock = this.buildSingleSwapExchangeCallData(
       priceRoute,
       routeIndex,
       swapIndex,
@@ -662,6 +664,44 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       applyVerticalBranching,
       true, // disableRevertableGroup — never nest
     );
+
+    // Normalize the fallback block's INPUT. When the primary's wrap lives outside
+    // the try block (root/shared wrap), it persists after a try revert, so the
+    // branch holds its slice as WETH — unlike a try-internal wrap, which rolls
+    // back leaving raw ETH (that case the fallback unit already handles by
+    // adding its own approve+deposit).
+    if (
+      isETHAddress(swap.srcToken) &&
+      Boolean(exchangeParams[exchangeParamIndex].needWrapNative) &&
+      !wrapAddedInsideTry
+    ) {
+      if (!fallbackParam.needWrapNative) {
+        // WETH in hand, fallback consumes raw ETH: unwrap the slice first (the
+        // running amount is inserted at runtime; rolls back with the block).
+        fallbackBlock = hexConcat([
+          this.buildUnwrapEthCallData(
+            this.getWETHAddress(fallbackParam),
+            this.erc20Interface.encodeFunctionData('withdraw', [
+              swapExchange.srcAmount,
+            ]),
+          ),
+          fallbackBlock,
+        ]);
+      } else if (fallbackParam.approveData && !fallbackParam.skipApproval) {
+        // WETH in hand, fallback also consumes WETH: no deposit needed, but the
+        // unit skipped its approve (it only rides with the deposit branch,
+        // which the external wrap suppresses) — prepend it.
+        fallbackBlock = hexConcat([
+          this.buildApproveCallData(
+            fallbackParam.approveData.target,
+            fallbackParam.approveData.token,
+            fallbackFlags.approves[exchangeParamIndex],
+            fallbackParam.permit2Approval,
+          ),
+          fallbackBlock,
+        ]);
+      }
+    }
 
     // payload = [padding(28)][tryLen(4)][fallbackLen(4)][try][fallback]
     let payload = hexConcat([
@@ -1032,12 +1072,11 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
     if (
       !disableRevertableGroup &&
       fallbackParam &&
-      // Shared-wrap hazard: for ETH-src split members the wrap calldata may be
-      // shared across sibling branches; rolling it back with a failed try would
-      // strand the siblings — run those plain.
-      !(addMultiSwapMetadata && isETHAddress(swap.srcToken)) &&
       // Mixed wrap-ness on ETH dest would make the group's threading balance
-      // check read the wrong token (WETH vs ETH) — plain swap is safer.
+      // check read the wrong token (WETH vs ETH); normalizing the fallback's
+      // OUTPUT is entangled with the unit's final send-native/transfer ordering,
+      // so these run plain until that's ported — input-side mismatches are
+      // normalized inside wrapInRevertableGroup.
       !(
         isETHAddress(swap.destToken) &&
         Boolean(curExchangeParam.needWrapNative) !==
@@ -1055,6 +1094,11 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
         allowToAddWrap,
         prevBranchWasWrapped,
         !!addMultiSwapMetadata,
+        // Whether the primary's wrap sits INSIDE the try block (rolls back with
+        // it) or outside (root/shared — persists after a try revert).
+        !!addedWrapToSwapExchangeMap[
+          `${routeIndex}_${swapIndex}_${swapExchangeIndex}`
+        ],
         maybeWethCallData,
         applyVerticalBranching,
       );
