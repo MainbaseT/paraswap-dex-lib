@@ -14,6 +14,12 @@ export type HopSpec = {
   // Index of the split member to fabricate as the always-reverting fallbackable
   // primary (its real quote becomes the fallback). Omit for an all-real hop.
   fabricatedMemberIndex?: number;
+  // Per-member pricing venue override (defaults to the scenario pricing dex).
+  // Lets a sibling be a raw-ETH venue (e.g. UniswapV4) for wrap-placement cases.
+  pricingDexes?: (string | undefined)[];
+  // Venue to price the fabricated member's FALLBACK on (defaults to that
+  // member's pricing dex). E.g. UniswapV4 for raw-ETH-consuming fallbacks.
+  fallbackPricingDex?: string;
 };
 
 export type ScenarioSpec = {
@@ -28,6 +34,11 @@ export type ScenarioSpec = {
   hops: HopSpec[];
   // BPS subtracted from quoted destAmount for min-out. Default 300.
   slippageBps?: number;
+  // Expectations (default true). expectGroup=false: the builder is expected to
+  // SKIP the group (e.g. guarded mixed wrap-ness) — and since the fabricated
+  // primary then runs plain, the simulation is expected to revert.
+  expectGroup?: boolean;
+  expectSuccess?: boolean;
 };
 
 export type GeneratedRoute = {
@@ -36,6 +47,8 @@ export type GeneratedRoute = {
   network: number;
   generatedAt: string;
   slippageBps: number;
+  expectGroup: boolean;
+  expectSuccess: boolean;
   priceRoute: OptimalRate;
 };
 

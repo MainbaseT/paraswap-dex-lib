@@ -73,8 +73,28 @@ function fabricatedRevertingQuote(hopSrcToken: string, amount: bigint) {
   };
 }
 
+// One SDK (with initialized pricing) per venue, created lazily.
+class SdkRegistry {
+  private sdks: Record<string, LocalParaswapSDK> = {};
+
+  async get(dexKey: string): Promise<LocalParaswapSDK> {
+    if (!this.sdks[dexKey]) {
+      const sdk = new LocalParaswapSDK(NETWORK, [dexKey], '');
+      await sdk.initializePricing?.();
+      this.sdks[dexKey] = sdk;
+    }
+    return this.sdks[dexKey];
+  }
+
+  async release(): Promise<void> {
+    for (const sdk of Object.values(this.sdks)) {
+      await sdk.releaseResources?.();
+    }
+  }
+}
+
 async function generateScenario(
-  sdk: LocalParaswapSDK,
+  sdks: SdkRegistry,
   spec: ScenarioSpec,
 ): Promise<GeneratedRoute> {
   const tokens = TOKENS;
@@ -103,34 +123,48 @@ async function generateScenario(
     const members: OptimalSwapExchangeWithFallback[] = [];
     let hopDestTotal = 0n;
 
-    for (let j = 0; j < slices.length; j++) {
-      // Price the real venue at exactly this slice.
+    const priceSlice = async (dexKey: string, amount: bigint) => {
+      const sdk = await sdks.get(dexKey);
       const priced = await sdk.getPrices(
         from,
         to,
-        slices[j],
+        amount,
         SwapSide.SELL,
         ContractMethod.swapExactAmountIn,
       );
       blockNumber = priced.blockNumber;
-      const realSe = priced.bestRoute[0].swaps[0].swapExchanges[0];
+      return priced.bestRoute[0].swaps[0].swapExchanges[0];
+    };
+
+    for (let j = 0; j < slices.length; j++) {
+      const memberDex = hop.pricingDexes?.[j] ?? PRICING_DEX;
+      const realSe = await priceSlice(memberDex, slices[j]);
       const member: OptimalSwapExchangeWithFallback = {
         ...realSe,
         srcAmount: slices[j].toString(),
         percent: split[j],
       };
-      hopDestTotal += BigInt(realSe.destAmount);
 
       if (hop.fabricatedMemberIndex === j) {
+        // The fallback may be priced on a different venue (e.g. a raw-ETH one).
+        const fallbackSe = hop.fallbackPricingDex
+          ? {
+              ...(await priceSlice(hop.fallbackPricingDex, slices[j])),
+              srcAmount: slices[j].toString(),
+              percent: split[j],
+            }
+          : member;
+        hopDestTotal += BigInt(fallbackSe.destAmount);
         members.push({
           exchange: 'Native',
           srcAmount: member.srcAmount,
-          destAmount: member.destAmount,
+          destAmount: fallbackSe.destAmount,
           percent: split[j],
           data: fabricatedRevertingQuote(from.address, slices[j]),
-          fallback: member, // the real quote is the revertable fallback
+          fallback: fallbackSe, // the real quote is the revertable fallback
         });
       } else {
+        hopDestTotal += BigInt(realSe.destAmount);
         members.push(member);
       }
     }
@@ -178,6 +212,8 @@ async function generateScenario(
     network: NETWORK,
     generatedAt: new Date().toISOString(),
     slippageBps: spec.slippageBps ?? 300,
+    expectGroup: spec.expectGroup ?? true,
+    expectSuccess: spec.expectSuccess ?? true,
     priceRoute,
   };
 }
@@ -186,8 +222,7 @@ export async function generateAllRoutes(): Promise<{
   routes: GeneratedRoute[];
   failures: string[];
 }> {
-  const sdk = new LocalParaswapSDK(NETWORK, [PRICING_DEX], '');
-  await sdk.initializePricing?.();
+  const sdks = new SdkRegistry();
 
   const routes: GeneratedRoute[] = [];
   const failures: string[] = [];
@@ -195,14 +230,14 @@ export async function generateAllRoutes(): Promise<{
     for (const spec of SCENARIOS) {
       try {
         console.log(`generating: ${spec.name} ...`);
-        routes.push(await generateScenario(sdk, spec));
+        routes.push(await generateScenario(sdks, spec));
       } catch (e) {
         console.error(`FAILED: ${spec.name}:`, e);
         failures.push(spec.name);
       }
     }
   } finally {
-    await sdk.releaseResources?.();
+    await sdks.release();
   }
 
   const out: GeneratedRoutesFile = {

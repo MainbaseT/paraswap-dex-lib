@@ -55,8 +55,13 @@ describe('Revertable fallback groups — manufactured routes (Arbitrum)', () => 
         userAddress,
       );
 
-      // The calldata must carry at least one 0xFF group step.
-      expect(swapParams.data!.replace('0x', '')).toMatch(GROUP_STEP_RE);
+      // The calldata must carry a 0xFF group step — unless this scenario
+      // documents a builder guard that intentionally skips the group.
+      if (route.expectGroup ?? true) {
+        expect(swapParams.data!.replace('0x', '')).toMatch(GROUP_STEP_RE);
+      } else {
+        expect(swapParams.data!.replace('0x', '')).not.toMatch(GROUP_STEP_RE);
+      }
 
       const tenderlySimulator = TenderlySimulator.getInstance();
       const stateOverride: StateOverride = {};
@@ -99,8 +104,9 @@ describe('Revertable fallback groups — manufactured routes (Arbitrum)', () => 
         `${route.name}: https://dashboard.tenderly.co/simulator/${simulation.id}`,
       );
 
-      // The fabricated primary cannot succeed — success means the fallback filled.
-      expect(simulation.status).toBe(true);
+      // The fabricated primary cannot succeed — success means the fallback
+      // filled. For guarded (no-group) scenarios the plain primary must revert.
+      expect(simulation.status).toBe(route.expectSuccess ?? true);
     } finally {
       await sdk.releaseResources?.();
     }
