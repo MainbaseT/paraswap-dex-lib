@@ -303,8 +303,9 @@ const baseConfigs: { [network: number]: BaseConfig } = {
       process.env[`HASHFLOW_DISABLED_MMS_42161`]?.split(',') || [],
     augustusV6Address: '0x6a000f20005980200259b80c5102003040001068',
     executorsAddresses: {
-      Executor01: '0x8faa0000c10015610005ca010ee000d006e0e820',
-      Executor02: '0x6f0538001f90d0a5f0000060d01d34c002030900',
+      // fallback-capable executors (revertable swap fallback groups)
+      Executor01: '0x3D546f0181b78b97c1a3C33CAb23AA443E26EAB4',
+      Executor02: '0x30E7Fcd8700D023f9767745395C636142db52108',
       Executor03: '0xa000b020c290d000020aac04026b5306d60050f0',
     },
     dexalotAuthToken: process.env.API_KEY_DEXALOT_AUTH_TOKEN || '',
