@@ -82,4 +82,47 @@ export const SCENARIOS: ScenarioSpec[] = [
     amount: ETH_0_01,
     hops: [{ split: [50, 50], fabricatedMemberIndex: 0 }],
   },
+  {
+    name: 'multihop-fallback-hop-then-split',
+    description:
+      'E02 MID-ROUTE whole-hop group threading (flag 11): USDC->WETH->WBTC, hop0 single fabricated (its output must thread on), hop1 split 50/50 all real',
+    path: ['USDC', 'WETH', 'WBTC'],
+    amount: USDC_10,
+    hops: [{ fabricatedMemberIndex: 0 }, { split: [50, 50] }],
+  },
+  {
+    name: 'split-last-member-fallback',
+    description:
+      'E02 group as the LAST split member (remainder-path semantics): USDC->WETH split 50/50, member 1 falls back',
+    path: ['USDC', 'WETH'],
+    amount: USDC_10,
+    hops: [{ split: [50, 50], fabricatedMemberIndex: 1 }],
+  },
+  {
+    name: 'eth-dest-split-member-fallback',
+    description:
+      'E02 ETH-dest split: USDC->ETH split 50/50, member 0 falls back; unwrap-after machinery composes with the group (same wrap-ness)',
+    path: ['USDC', 'ETH'],
+    amount: USDC_10,
+    hops: [{ split: [50, 50], fabricatedMemberIndex: 0 }],
+  },
+  {
+    name: 'multihop-double-fallback',
+    description:
+      'E01 TWO groups in one route: USDC->WETH->WBTC, both hops fall back sequentially',
+    path: ['USDC', 'WETH', 'WBTC'],
+    amount: USDC_10,
+    hops: [{ fabricatedMemberIndex: 0 }, { fabricatedMemberIndex: 0 }],
+  },
+  {
+    name: 'split-member-and-hop-double-fallback',
+    description:
+      'E02 TWO groups in one route: hop0 split 50/50 with member 0 falling back (group in path), hop1 single fabricated (whole-hop group)',
+    path: ['USDC', 'WETH', 'WBTC'],
+    amount: USDC_10,
+    hops: [
+      { split: [50, 50], fabricatedMemberIndex: 0 },
+      { fabricatedMemberIndex: 0 },
+    ],
+  },
 ];

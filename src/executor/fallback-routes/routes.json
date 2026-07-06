@@ -5,17 +5,17 @@
       "name": "single-hop-fallback",
       "description": "E01 whole-hop group: single USDC->WETH hop, primary reverts, fallback fills",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:46.149Z",
+      "generatedAt": "2026-07-06T08:14:49.048Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934982,
+        "blockNumber": 480937153,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
         "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         "destDecimals": 18,
-        "destAmount": "5554626387363883",
+        "destAmount": "5554584484380887",
         "bestRoute": [
           {
             "percent": 100,
@@ -29,7 +29,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "10000000",
-                    "destAmount": "5554626387363883",
+                    "destAmount": "5554584484380887",
                     "percent": 100,
                     "data": {
                       "quote": {
@@ -43,7 +43,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "10000000",
-                      "destAmount": "5554626387363883",
+                      "destAmount": "5554584484380887",
                       "percent": 100,
                       "data": {
                         "path": [
@@ -87,15 +87,15 @@
       "name": "multihop-fallback-first-hop",
       "description": "E01 group at sequence START: USDC->WETH->WBTC, hop0 falls back, its output threads to hop1",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:46.612Z",
+      "generatedAt": "2026-07-06T08:14:49.662Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934986,
+        "blockNumber": 480937158,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
-        "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
         "destDecimals": 8,
         "destAmount": "15537",
         "bestRoute": [
@@ -111,7 +111,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "10000000",
-                    "destAmount": "5554626387363883",
+                    "destAmount": "5554584484380887",
                     "percent": 100,
                     "data": {
                       "quote": {
@@ -125,7 +125,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "10000000",
-                      "destAmount": "5554626387363883",
+                      "destAmount": "5554584484380887",
                       "percent": 100,
                       "data": {
                         "path": [
@@ -150,12 +150,12 @@
               {
                 "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
                 "srcDecimals": 18,
-                "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
                 "destDecimals": 8,
                 "swapExchanges": [
                   {
                     "exchange": "UniswapV3",
-                    "srcAmount": "5554626387363883",
+                    "srcAmount": "5554584484380887",
                     "destAmount": "15537",
                     "percent": 100,
                     "data": {
@@ -199,15 +199,15 @@
       "name": "multihop-fallback-last-hop",
       "description": "E01 group at sequence END: USDC->WETH->WBTC, hop1 falls back after a real hop0",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:46.663Z",
+      "generatedAt": "2026-07-06T08:14:49.733Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934988,
+        "blockNumber": 480937161,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
-        "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
         "destDecimals": 8,
         "destAmount": "15537",
         "bestRoute": [
@@ -223,7 +223,7 @@
                   {
                     "exchange": "UniswapV3",
                     "srcAmount": "10000000",
-                    "destAmount": "5554626387363883",
+                    "destAmount": "5554584484380887",
                     "percent": 100,
                     "data": {
                       "path": [
@@ -247,26 +247,26 @@
               {
                 "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
                 "srcDecimals": 18,
-                "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
                 "destDecimals": 8,
                 "swapExchanges": [
                   {
                     "exchange": "Native",
-                    "srcAmount": "5554626387363883",
+                    "srcAmount": "5554584484380887",
                     "destAmount": "15537",
                     "percent": 100,
                     "data": {
                       "quote": {
                         "txRequest": {
                           "target": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bbe73cadc82b",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bbdd7b1100d7",
                           "value": "0"
                         }
                       }
                     },
                     "fallback": {
                       "exchange": "UniswapV3",
-                      "srcAmount": "5554626387363883",
+                      "srcAmount": "5554584484380887",
                       "destAmount": "15537",
                       "percent": 100,
                       "data": {
@@ -311,15 +311,15 @@
       "name": "multihop-fallback-middle-hop",
       "description": "E01 group in sequence MIDDLE: USDT->USDC->WETH->WBTC, hop1 falls back between real hops",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:46.974Z",
+      "generatedAt": "2026-07-06T08:14:50.105Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934989,
+        "blockNumber": 480937162,
         "network": 42161,
-        "srcToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+        "srcToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         "srcDecimals": 6,
         "srcAmount": "10000000",
-        "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
         "destDecimals": 8,
         "destAmount": "15415",
         "bestRoute": [
@@ -327,7 +327,7 @@
             "percent": 100,
             "swaps": [
               {
-                "srcToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                "srcToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
                 "srcDecimals": 6,
                 "destToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
                 "destDecimals": 6,
@@ -365,7 +365,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "9921392",
-                    "destAmount": "5510969572572926",
+                    "destAmount": "5510927998901610",
                     "percent": 100,
                     "data": {
                       "quote": {
@@ -379,7 +379,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "9921392",
-                      "destAmount": "5510969572572926",
+                      "destAmount": "5510927998901610",
                       "percent": 100,
                       "data": {
                         "path": [
@@ -404,12 +404,12 @@
               {
                 "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
                 "srcDecimals": 18,
-                "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
                 "destDecimals": 8,
                 "swapExchanges": [
                   {
                     "exchange": "UniswapV3",
-                    "srcAmount": "5510969572572926",
+                    "srcAmount": "5510927998901610",
                     "destAmount": "15415",
                     "percent": 100,
                     "data": {
@@ -453,23 +453,23 @@
       "name": "eth-src-wrap-in-try",
       "description": "E01 wrap rollback: ETH->USDC, primary (needs WETH) wraps inside the try; on revert the wrap rolls back and the fallback re-wraps",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:46.999Z",
+      "generatedAt": "2026-07-06T08:14:50.140Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934989,
+        "blockNumber": 480937162,
         "network": 42161,
-        "srcToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "srcToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         "srcDecimals": 18,
         "srcAmount": "10000000000000000",
         "destToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "destDecimals": 6,
-        "destAmount": "17636778",
+        "destAmount": "17636911",
         "bestRoute": [
           {
             "percent": 100,
             "swaps": [
               {
-                "srcToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "srcToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
                 "srcDecimals": 18,
                 "destToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
                 "destDecimals": 6,
@@ -477,7 +477,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "10000000000000000",
-                    "destAmount": "17636778",
+                    "destAmount": "17636911",
                     "percent": 100,
                     "data": {
                       "quote": {
@@ -491,7 +491,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "10000000000000000",
-                      "destAmount": "17636778",
+                      "destAmount": "17636911",
                       "percent": 100,
                       "data": {
                         "path": [
@@ -535,17 +535,17 @@
       "name": "eth-dest-unwrap",
       "description": "E01 unwrap side: USDC->ETH, primary and fallback both WETH-based (same wrap-ness), unwrap-after machinery",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:47.024Z",
+      "generatedAt": "2026-07-06T08:14:50.173Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934990,
+        "blockNumber": 480937162,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
-        "destToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "destToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         "destDecimals": 18,
-        "destAmount": "5554626387363883",
+        "destAmount": "5554584484380887",
         "bestRoute": [
           {
             "percent": 100,
@@ -553,13 +553,13 @@
               {
                 "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
                 "srcDecimals": 6,
-                "destToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "destToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
                 "destDecimals": 18,
                 "swapExchanges": [
                   {
                     "exchange": "Native",
                     "srcAmount": "10000000",
-                    "destAmount": "5554626387363883",
+                    "destAmount": "5554584484380887",
                     "percent": 100,
                     "data": {
                       "quote": {
@@ -573,7 +573,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "10000000",
-                      "destAmount": "5554626387363883",
+                      "destAmount": "5554584484380887",
                       "percent": 100,
                       "data": {
                         "path": [
@@ -617,17 +617,17 @@
       "name": "split-member-fallback",
       "description": "E02 group nested in a path: USDC->WETH split 50/50, member 0 falls back, sibling unaffected",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:47.073Z",
+      "generatedAt": "2026-07-06T08:14:50.241Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934990,
+        "blockNumber": 480937163,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
         "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         "destDecimals": 18,
-        "destAmount": "5555077582972490",
+        "destAmount": "5555035674883912",
         "bestRoute": [
           {
             "percent": 100,
@@ -641,7 +641,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "5000000",
-                    "destAmount": "2777538791486245",
+                    "destAmount": "2777517837441956",
                     "percent": 50,
                     "data": {
                       "quote": {
@@ -655,7 +655,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "5000000",
-                      "destAmount": "2777538791486245",
+                      "destAmount": "2777517837441956",
                       "percent": 50,
                       "data": {
                         "path": [
@@ -678,7 +678,7 @@
                   {
                     "exchange": "UniswapV3",
                     "srcAmount": "5000000",
-                    "destAmount": "2777538791486245",
+                    "destAmount": "2777517837441956",
                     "percent": 50,
                     "data": {
                       "path": [
@@ -721,15 +721,15 @@
       "name": "multihop-split-then-fallback-hop",
       "description": "E02 WHOLE-HOP group with threading flag: USDC->WETH->WBTC, hop0 split 50/50 (all real), hop1 single fabricated",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:47.150Z",
+      "generatedAt": "2026-07-06T08:14:50.342Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934990,
+        "blockNumber": 480937163,
         "network": 42161,
         "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "srcDecimals": 6,
         "srcAmount": "10000000",
-        "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
         "destDecimals": 8,
         "destAmount": "15538",
         "bestRoute": [
@@ -745,7 +745,7 @@
                   {
                     "exchange": "UniswapV3",
                     "srcAmount": "5000000",
-                    "destAmount": "2777538791486245",
+                    "destAmount": "2777517837441956",
                     "percent": 50,
                     "data": {
                       "path": [
@@ -767,7 +767,7 @@
                   {
                     "exchange": "UniswapV3",
                     "srcAmount": "5000000",
-                    "destAmount": "2777538791486245",
+                    "destAmount": "2777517837441956",
                     "percent": 50,
                     "data": {
                       "path": [
@@ -791,26 +791,26 @@
               {
                 "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
                 "srcDecimals": 18,
-                "destToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
                 "destDecimals": 8,
                 "swapExchanges": [
                   {
                     "exchange": "Native",
-                    "srcAmount": "5555077582972490",
+                    "srcAmount": "5555035674883912",
                     "destAmount": "15538",
                     "percent": 100,
                     "data": {
                       "quote": {
                         "txRequest": {
                           "target": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bc504a08664a",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bc46881db748",
                           "value": "0"
                         }
                       }
                     },
                     "fallback": {
                       "exchange": "UniswapV3",
-                      "srcAmount": "5555077582972490",
+                      "srcAmount": "5555035674883912",
                       "destAmount": "15538",
                       "percent": 100,
                       "data": {
@@ -855,23 +855,23 @@
       "name": "eth-src-split-member-fallback",
       "description": "E02 input normalization: ETH->USDC split 50/50, member 0 falls back; external wrap persists, fallback gets its approve prepended",
       "network": 42161,
-      "generatedAt": "2026-07-06T08:05:47.203Z",
+      "generatedAt": "2026-07-06T08:14:50.419Z",
       "slippageBps": 300,
       "priceRoute": {
-        "blockNumber": 480934990,
+        "blockNumber": 480937163,
         "network": 42161,
-        "srcToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "srcToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         "srcDecimals": 18,
         "srcAmount": "10000000000000000",
         "destToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "destDecimals": 6,
-        "destAmount": "17639330",
+        "destAmount": "17639464",
         "bestRoute": [
           {
             "percent": 100,
             "swaps": [
               {
-                "srcToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "srcToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
                 "srcDecimals": 18,
                 "destToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
                 "destDecimals": 6,
@@ -879,7 +879,7 @@
                   {
                     "exchange": "Native",
                     "srcAmount": "5000000000000000",
-                    "destAmount": "8819665",
+                    "destAmount": "8819732",
                     "percent": 50,
                     "data": {
                       "quote": {
@@ -893,7 +893,7 @@
                     "fallback": {
                       "exchange": "UniswapV3",
                       "srcAmount": "5000000000000000",
-                      "destAmount": "8819665",
+                      "destAmount": "8819732",
                       "percent": 50,
                       "data": {
                         "path": [
@@ -916,7 +916,7 @@
                   {
                     "exchange": "UniswapV3",
                     "srcAmount": "5000000000000000",
-                    "destAmount": "8819665",
+                    "destAmount": "8819732",
                     "percent": 50,
                     "data": {
                       "path": [
@@ -934,6 +934,624 @@
                     "poolIdentifiers": [
                       "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
                     ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "multihop-fallback-hop-then-split",
+      "description": "E02 MID-ROUTE whole-hop group threading (flag 11): USDC->WETH->WBTC, hop0 single fabricated (its output must thread on), hop1 split 50/50 all real",
+      "network": 42161,
+      "generatedAt": "2026-07-06T08:14:50.517Z",
+      "slippageBps": 300,
+      "priceRoute": {
+        "blockNumber": 480937164,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+        "destDecimals": 8,
+        "destAmount": "15536",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "10000000",
+                    "destAmount": "5554584484380887",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000000000000989680",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "10000000",
+                      "destAmount": "5554584484380887",
+                      "percent": 100,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "srcDecimals": 18,
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+                "destDecimals": 8,
+                "swapExchanges": [
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "2777292242190443",
+                    "destAmount": "7768",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "tokenOut": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x99dfc0126ed31e0169fc32db6b89adf9fee9a77e"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_10000"
+                    ]
+                  },
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "2777292242190444",
+                    "destAmount": "7768",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "tokenOut": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x99dfc0126ed31e0169fc32db6b89adf9fee9a77e"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_10000"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "split-last-member-fallback",
+      "description": "E02 group as the LAST split member (remainder-path semantics): USDC->WETH split 50/50, member 1 falls back",
+      "network": 42161,
+      "generatedAt": "2026-07-06T08:14:50.586Z",
+      "slippageBps": 300,
+      "priceRoute": {
+        "blockNumber": 480937164,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "destDecimals": 18,
+        "destAmount": "5555035674883912",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                          "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                    ]
+                  },
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef00000000000000000000000000000000000000000000000000000000004c4b40",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "5000000",
+                      "destAmount": "2777517837441956",
+                      "percent": 50,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "eth-dest-split-member-fallback",
+      "description": "E02 ETH-dest split: USDC->ETH split 50/50, member 0 falls back; unwrap-after machinery composes with the group (same wrap-ness)",
+      "network": 42161,
+      "generatedAt": "2026-07-06T08:14:50.654Z",
+      "slippageBps": 300,
+      "priceRoute": {
+        "blockNumber": 480937164,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        "destDecimals": 18,
+        "destAmount": "5555035674883912",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef00000000000000000000000000000000000000000000000000000000004c4b40",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "5000000",
+                      "destAmount": "2777517837441956",
+                      "percent": 50,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                      ]
+                    }
+                  },
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                          "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "multihop-double-fallback",
+      "description": "E01 TWO groups in one route: USDC->WETH->WBTC, both hops fall back sequentially",
+      "network": 42161,
+      "generatedAt": "2026-07-06T08:14:50.723Z",
+      "slippageBps": 300,
+      "priceRoute": {
+        "blockNumber": 480937165,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+        "destDecimals": 8,
+        "destAmount": "15537",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "10000000",
+                    "destAmount": "5554584484380887",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000000000000989680",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "10000000",
+                      "destAmount": "5554584484380887",
+                      "percent": 100,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "srcDecimals": 18,
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+                "destDecimals": 8,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5554584484380887",
+                    "destAmount": "15537",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bbdd7b1100d7",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "5554584484380887",
+                      "destAmount": "15537",
+                      "percent": 100,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "tokenOut": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x99dfc0126ed31e0169fc32db6b89adf9fee9a77e"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_10000"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "split-member-and-hop-double-fallback",
+      "description": "E02 TWO groups in one route: hop0 split 50/50 with member 0 falling back (group in path), hop1 single fabricated (whole-hop group)",
+      "network": 42161,
+      "generatedAt": "2026-07-06T08:14:50.832Z",
+      "slippageBps": 300,
+      "priceRoute": {
+        "blockNumber": 480937165,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+        "destDecimals": 8,
+        "destAmount": "15538",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef00000000000000000000000000000000000000000000000000000000004c4b40",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "5000000",
+                      "destAmount": "2777517837441956",
+                      "percent": 50,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                      ]
+                    }
+                  },
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "5000000",
+                    "destAmount": "2777517837441956",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                          "tokenOut": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x42fc852a750ba93d5bf772ecdc857e87a86403a9"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xaf88d065e77c8cc2239327c5edb3a432268e5831_10000"
+                    ]
+                  }
+                ]
+              },
+              {
+                "srcToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "srcDecimals": 18,
+                "destToken": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+                "destDecimals": 8,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5555035674883912",
+                    "destAmount": "15538",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000013bc46881db748",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "UniswapV3",
+                      "srcAmount": "5555035674883912",
+                      "destAmount": "15538",
+                      "percent": 100,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                            "tokenOut": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+                            "fee": "10000",
+                            "currentFee": "10000"
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x99dfc0126ed31e0169fc32db6b89adf9fee9a77e"
+                      ],
+                      "poolIdentifiers": [
+                        "UniswapV3_0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_10000"
+                      ]
+                    }
                   }
                 ]
               }
