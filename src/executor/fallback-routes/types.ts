@@ -22,16 +22,25 @@ export type HopSpec = {
   fallbackPricingDex?: string;
 };
 
+// One top-level route of a megaswap. All routes of a scenario must share the
+// same first and last token; `percent` splits the scenario's src amount.
+export type RouteSpec = {
+  percent: number;
+  path: string[];
+  hops: HopSpec[];
+};
+
 export type ScenarioSpec = {
   // Readable unique id, e.g. 'multihop-fallback-first-hop'
   name: string;
   description: string;
-  // Token symbols from tests/constants-e2e, e.g. ['USDC', 'WETH', 'WBTC']
-  path: string[];
-  // Raw src amount (wei of path[0])
+  // Raw src amount (wei of the src token)
   amount: string;
-  // One entry per hop (path.length - 1)
-  hops: HopSpec[];
+  // Single-route form: token symbols + one HopSpec per hop.
+  path?: string[];
+  hops?: HopSpec[];
+  // Megaswap form (bestRoute.length > 1): mutually exclusive with path/hops.
+  routes?: RouteSpec[];
   // BPS subtracted from quoted destAmount for min-out. Default 300.
   slippageBps?: number;
   // Expectations (default true). expectGroup=false: the builder is expected to

@@ -24,7 +24,13 @@ import { Token } from '../../types';
 import { isETHAddress } from '../../utils';
 import { OptimalSwapExchangeWithFallback } from '../../types';
 import { SCENARIOS } from './scenarios';
-import { GeneratedRoute, GeneratedRoutesFile, ScenarioSpec } from './types';
+import {
+  GeneratedRoute,
+  GeneratedRoutesFile,
+  HopSpec,
+  RouteSpec,
+  ScenarioSpec,
+} from './types';
 
 const NETWORK = Network.ARBITRUM;
 const PRICING_DEX = 'UniswapV3';
@@ -93,26 +99,31 @@ class SdkRegistry {
   }
 }
 
-async function generateScenario(
+// Build the swaps (hops) of one route, pricing every slice live. Returns the
+// route's swaps, its output amount and the latest pricing block.
+async function buildRouteSwaps(
   sdks: SdkRegistry,
-  spec: ScenarioSpec,
-): Promise<GeneratedRoute> {
+  scenarioName: string,
+  path: string[],
+  hops: HopSpec[],
+  routeAmount: bigint,
+): Promise<{ swaps: OptimalSwap[]; out: bigint; blockNumber: number }> {
   const tokens = TOKENS;
-  if (spec.hops.length !== spec.path.length - 1) {
-    throw new Error(`${spec.name}: hops must match path segments`);
+  if (hops.length !== path.length - 1) {
+    throw new Error(`${scenarioName}: hops must match path segments`);
   }
 
-  let runningAmount = BigInt(spec.amount);
+  let runningAmount = routeAmount;
   let blockNumber = 0;
   const swaps: OptimalSwap[] = [];
 
-  for (let i = 0; i < spec.hops.length; i++) {
-    const hop = spec.hops[i];
-    const from = tokens[spec.path[i]];
-    const to = tokens[spec.path[i + 1]];
+  for (let i = 0; i < hops.length; i++) {
+    const hop = hops[i];
+    const from = tokens[path[i]];
+    const to = tokens[path[i + 1]];
     const split = hop.split ?? [100];
     if (split.reduce((a, b) => a + b, 0) !== 100) {
-      throw new Error(`${spec.name}: hop ${i} split must sum to 100`);
+      throw new Error(`${scenarioName}: hop ${i} split must sum to 100`);
     }
 
     // Slice amounts; last slice takes the remainder to preserve the total.
@@ -179,8 +190,55 @@ async function generateScenario(
     runningAmount = hopDestTotal;
   }
 
-  const src = tokens[spec.path[0]];
-  const dest = tokens[spec.path[spec.path.length - 1]];
+  return { swaps, out: runningAmount, blockNumber };
+}
+
+async function generateScenario(
+  sdks: SdkRegistry,
+  spec: ScenarioSpec,
+): Promise<GeneratedRoute> {
+  const tokens = TOKENS;
+  const routeSpecs: RouteSpec[] = spec.routes ?? [
+    { percent: 100, path: spec.path!, hops: spec.hops! },
+  ];
+  if (routeSpecs.reduce((a, r) => a + r.percent, 0) !== 100) {
+    throw new Error(`${spec.name}: route percents must sum to 100`);
+  }
+  const srcSym = routeSpecs[0].path[0];
+  const destSym = routeSpecs[0].path[routeSpecs[0].path.length - 1];
+  if (
+    !routeSpecs.every(
+      r => r.path[0] === srcSym && r.path[r.path.length - 1] === destSym,
+    )
+  ) {
+    throw new Error(`${spec.name}: all routes must share src and dest tokens`);
+  }
+
+  // Split the src amount across routes; last route takes the remainder.
+  const total = BigInt(spec.amount);
+  const routeAmounts = routeSpecs.map(r => (total * BigInt(r.percent)) / 100n);
+  routeAmounts[routeAmounts.length - 1] =
+    total - routeAmounts.slice(0, -1).reduce((a, b) => a + b, 0n);
+
+  let blockNumber = 0;
+  let destAmount = 0n;
+  const bestRoute = [];
+  for (let i = 0; i < routeSpecs.length; i++) {
+    const r = routeSpecs[i];
+    const built = await buildRouteSwaps(
+      sdks,
+      spec.name,
+      r.path,
+      r.hops,
+      routeAmounts[i],
+    );
+    blockNumber = built.blockNumber;
+    destAmount += built.out;
+    bestRoute.push({ percent: r.percent, swaps: built.swaps });
+  }
+
+  const src = tokens[srcSym];
+  const dest = tokens[destSym];
   const priceRoute = {
     blockNumber,
     network: NETWORK,
@@ -189,8 +247,8 @@ async function generateScenario(
     srcAmount: spec.amount,
     destToken: dest.address,
     destDecimals: dest.decimals,
-    destAmount: runningAmount.toString(),
-    bestRoute: [{ percent: 100, swaps }],
+    destAmount: destAmount.toString(),
+    bestRoute,
     gasCostUSD: '0',
     gasCost: '0',
     others: [],

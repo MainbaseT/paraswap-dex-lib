@@ -170,6 +170,48 @@ export const SCENARIOS: ScenarioSpec[] = [
     hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'UniswapV4' }],
   },
   {
+    name: 'megaswap-fallback-in-route',
+    description:
+      'MEGASWAP (bestRoute.length=2, 50/50): routeA = USDC->WETH->WBTC with hop0 falling back mid-route, routeB = same path all real',
+    amount: USDC_10,
+    routes: [
+      {
+        percent: 50,
+        path: ['USDC', 'WETH', 'WBTC'],
+        hops: [{ fabricatedMemberIndex: 0 }, {}],
+      },
+      { percent: 50, path: ['USDC', 'WETH', 'WBTC'], hops: [{}, {}] },
+    ],
+  },
+  {
+    name: 'megaswap-split-member-fallback',
+    description:
+      'MEGASWAP deepest nesting: routeA hop0 is a 50/50 split whose member 0 falls back (group in path, inside a nested vertical branch), routeB simple real',
+    amount: USDC_10,
+    routes: [
+      {
+        percent: 50,
+        path: ['USDC', 'WETH', 'WBTC'],
+        hops: [{ split: [50, 50], fabricatedMemberIndex: 0 }, {}],
+      },
+      { percent: 50, path: ['USDC', 'WETH', 'WBTC'], hops: [{}, {}] },
+    ],
+  },
+  {
+    name: 'megaswap-whole-route-fallback',
+    description:
+      'MEGASWAP: routeA is a single fabricated hop (the group IS the whole route content), routeB real multi-hop',
+    amount: USDC_10,
+    routes: [
+      {
+        percent: 50,
+        path: ['USDC', 'WBTC'],
+        hops: [{ fabricatedMemberIndex: 0 }],
+      },
+      { percent: 50, path: ['USDC', 'WETH', 'WBTC'], hops: [{}, {}] },
+    ],
+  },
+  {
     name: 'eth-dest-split-mixed-wrapness-runs-plain',
     description:
       'NEGATIVE, E02 guard: USDC->ETH split 50/50, member 0 primary WETH-based with raw-ETH UniswapV4 fallback -> mixed wrap-ness on ETH dest is guarded, no group is encoded, the reverting primary runs plain and the tx fails',
