@@ -12,7 +12,7 @@ export {
 } from '@paraswap/core';
 import { Logger } from 'log4js';
 export { Logger } from 'log4js';
-import { OptimalRate, OptimalSwapExchange } from '@paraswap/core';
+import { OptimalRate } from '@paraswap/core';
 import BigNumber from 'bignumber.js';
 import { RFQConfig } from './dex/generic-rfq/types';
 import { Executors, Flag, SpecialDex } from './executor/types';
@@ -161,15 +161,6 @@ export type AdapterExchangeParam = {
 export type GetDexParamOptions = {
   nowTimestampMs?: number;
 };
-
-// Local extension of OptimalSwapExchange to carry a revertable fallback
-// alternative for a single hop (Option C — no @paraswap/core release yet).
-// The fallback is itself a full swap-exchange descriptor for the same hop.
-// TODO(before-ship): migrate `fallback` into @paraswap/core OptimalSwapExchange.
-export type OptimalSwapExchangeWithFallback<T = any> =
-  OptimalSwapExchange<T> & {
-    fallback?: OptimalSwapExchange<T>;
-  };
 
 export type DexExchangeParam = {
   needWrapNative: boolean | NeedWrapNativeFunc;

@@ -17,12 +17,17 @@ dotenv.config();
 import * as fs from 'fs';
 import * as path from 'path';
 import { Interface } from '@ethersproject/abi';
-import { OptimalRate, OptimalSwap, ParaSwapVersion } from '@paraswap/core';
+import {
+  OptimalRate,
+  OptimalSwap,
+  OptimalSwapExchange,
+  ParaSwapVersion,
+} from '@paraswap/core';
 import { LocalParaswapSDK } from '../../implementations/local-paraswap-sdk';
 import { ContractMethod, Network, SwapSide } from '../../constants';
 import { Token } from '../../types';
 import { isETHAddress } from '../../utils';
-import { OptimalSwapExchangeWithFallback } from '../../types';
+
 import { SCENARIOS } from './scenarios';
 import {
   GeneratedRoute,
@@ -131,7 +136,7 @@ async function buildRouteSwaps(
     slices[slices.length - 1] =
       runningAmount - slices.slice(0, -1).reduce((a, b) => a + b, 0n);
 
-    const members: OptimalSwapExchangeWithFallback[] = [];
+    const members: OptimalSwapExchange<any>[] = [];
     let hopDestTotal = 0n;
 
     const priceSlice = async (dexKey: string, amount: bigint) => {
@@ -150,7 +155,7 @@ async function buildRouteSwaps(
     for (let j = 0; j < slices.length; j++) {
       const memberDex = hop.pricingDexes?.[j] ?? PRICING_DEX;
       const realSe = await priceSlice(memberDex, slices[j]);
-      const member: OptimalSwapExchangeWithFallback = {
+      const member: OptimalSwapExchange<any> = {
         ...realSe,
         srcAmount: slices[j].toString(),
         percent: split[j],

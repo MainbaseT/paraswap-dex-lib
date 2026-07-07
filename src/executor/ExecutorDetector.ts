@@ -123,11 +123,7 @@ export class ExecutorDetector {
 
   private routeHasFallback(priceRoute: OptimalRate): boolean {
     return priceRoute.bestRoute.some(route =>
-      route.swaps.some(swap =>
-        swap.swapExchanges.some(
-          se => !!(se as { fallback?: unknown }).fallback,
-        ),
-      ),
+      route.swaps.some(swap => swap.swapExchanges.some(se => !!se.fallback)),
     );
   }
 

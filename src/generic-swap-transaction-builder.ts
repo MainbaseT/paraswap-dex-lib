@@ -206,8 +206,7 @@ export class GenericSwapTransactionBuilder {
             // Revertable fallback alternative attached during pricing (api).
             // Build it the same way as the primary so its setup (approve/wrap)
             // is encoded inside the group's fallback branch.
-            const seFallback = (se as { fallback?: OptimalSwapExchange<any> })
-              .fallback;
+            const seFallback = se.fallback;
             const fallback = seFallback
               ? await this.buildSingleExchangeParam(
                   priceRoute,

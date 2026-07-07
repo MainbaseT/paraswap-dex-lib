@@ -22,7 +22,7 @@ import { LocalParaswapSDK } from '../implementations/local-paraswap-sdk';
 import { TenderlySimulator, StateOverride } from '../tenderly-simulation';
 import { Tokens } from '../../tests/constants-e2e';
 import { ContractMethod, Network, SwapSide } from '../constants';
-import { OptimalSwapExchangeWithFallback } from '../types';
+import { OptimalSwapExchange } from '@paraswap/core';
 
 jest.setTimeout(300 * 1000);
 
@@ -67,7 +67,7 @@ describe('Executor02 revertable fallback — live split route (Arbitrum)', () =>
         halfSrc,
       ]);
 
-      const memberA: OptimalSwapExchangeWithFallback = {
+      const memberA: OptimalSwapExchange<any> = {
         exchange: 'Native',
         srcAmount: halfSrc.toString(),
         destAmount: halfDest.toString(),

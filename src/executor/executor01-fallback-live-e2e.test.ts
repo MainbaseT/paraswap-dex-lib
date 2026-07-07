@@ -18,7 +18,7 @@ import { LocalParaswapSDK } from '../implementations/local-paraswap-sdk';
 import { TenderlySimulator, StateOverride } from '../tenderly-simulation';
 import { Tokens } from '../../tests/constants-e2e';
 import { ContractMethod, Network, SwapSide } from '../constants';
-import { OptimalSwapExchangeWithFallback } from '../types';
+import { OptimalSwapExchange } from '@paraswap/core';
 
 jest.setTimeout(300 * 1000);
 
@@ -63,7 +63,7 @@ describe('Executor01 revertable fallback — live route (Arbitrum)', () => {
         amount,
       ]);
 
-      const manufactured: OptimalSwapExchangeWithFallback = {
+      const manufactured: OptimalSwapExchange<any> = {
         exchange: 'Native',
         srcAmount: realSe.srcAmount,
         destAmount: realSe.destAmount,
