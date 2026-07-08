@@ -141,13 +141,24 @@ async function buildRouteSwaps(
 
     const priceSlice = async (dexKey: string, amount: bigint) => {
       const sdk = await sdks.get(dexKey);
-      const priced = await sdk.getPrices(
-        from,
-        to,
-        amount,
-        SwapSide.SELL,
-        ContractMethod.swapExactAmountIn,
-      );
+      // Some venues (e.g. FluidDex's liquidity-proxy state) warm up async
+      // after initializePricing — retry once before giving up.
+      let priced;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          priced = await sdk.getPrices(
+            from,
+            to,
+            amount,
+            SwapSide.SELL,
+            ContractMethod.swapExactAmountIn,
+          );
+          break;
+        } catch (e) {
+          if (attempt >= 1) throw e;
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      }
       blockNumber = priced.blockNumber;
       return priced.bestRoute[0].swaps[0].swapExchanges[0];
     };

@@ -40,10 +40,26 @@ describe('Revertable fallback groups — manufactured routes (Arbitrum)', () => 
 
   it.each(routes.map(r => [r.name, r] as const))('%s', async (_name, route) => {
     const priceRoute = route.priceRoute as OptimalRate;
-    const sdk = new LocalParaswapSDK(route.network, ['UniswapV3'], '');
+
+    // Stateful venues (e.g. FluidDex's pool registry) need pricing initialized
+    // on the SAME adapter service the builder uses, or getDexParam has no
+    // state. Native is a stateless data-carrier — skip it.
+    const venues = new Set<string>();
+    priceRoute.bestRoute.forEach(r =>
+      r.swaps.forEach(s =>
+        s.swapExchanges.forEach(se => {
+          venues.add(se.exchange);
+          if (se.fallback) venues.add(se.fallback.exchange);
+        }),
+      ),
+    );
+    venues.delete('Native');
+
+    const sdk = new LocalParaswapSDK(route.network, [...venues], '');
     sdk.skipPreProcess = true;
 
     try {
+      await sdk.initializePricing?.();
       const userAddress = TenderlySimulator.DEFAULT_OWNER;
       const minMaxAmount =
         (BigInt(priceRoute.destAmount) * (10000n - BigInt(route.slippageBps))) /

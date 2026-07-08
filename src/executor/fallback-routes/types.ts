@@ -44,8 +44,9 @@ export type ScenarioSpec = {
   // BPS subtracted from quoted destAmount for min-out. Default 300.
   slippageBps?: number;
   // Expectations (default true). expectGroup=false: the builder is expected to
-  // SKIP the group (e.g. guarded mixed wrap-ness) — and since the fabricated
-  // primary then runs plain, the simulation is expected to revert.
+  // SKIP the group (e.g. guarded mid-route ETH-dest mixed wrap-ness) — and
+  // since the fabricated primary then runs plain, the simulation is expected
+  // to revert.
   expectGroup?: boolean;
   expectSuccess?: boolean;
 };

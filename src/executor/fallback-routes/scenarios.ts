@@ -128,46 +128,46 @@ export const SCENARIOS: ScenarioSpec[] = [
   {
     name: 'eth-src-raw-eth-fallback',
     description:
-      'E01 raw-ETH fallback: ETH->USDC, primary (needs WETH) wraps inside the try; on revert the wrap rolls back and the UniswapV4 fallback spends raw ETH directly',
+      'E01 raw-ETH fallback: ETH->USDC, primary (needs WETH) wraps inside the try; on revert the wrap rolls back and the FluidDex fallback spends raw ETH directly',
     path: ['ETH', 'USDC'],
     amount: ETH_0_01,
-    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'UniswapV4' }],
+    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'FluidDex' }],
   },
   {
     name: 'eth-src-split-fallback-unwrap-normalization',
     description:
-      'E02 input normalization WITHDRAW branch: ETH->USDC split 50/50 (all members need WETH -> root wrap, external), member 0 falls back to raw-ETH UniswapV4 -> WETH.withdraw(slice) prepended to the fallback block',
+      'E02 input normalization WITHDRAW branch: ETH->USDC split 50/50 (all members need WETH -> root wrap, external), member 0 falls back to raw-ETH FluidDex -> WETH.withdraw(slice) prepended to the fallback block',
     path: ['ETH', 'USDC'],
     amount: ETH_0_01,
     hops: [
       {
         split: [50, 50],
         fabricatedMemberIndex: 0,
-        fallbackPricingDex: 'UniswapV4',
+        fallbackPricingDex: 'FluidDex',
       },
     ],
   },
   {
     name: 'eth-src-mixed-siblings-wrap-in-try',
     description:
-      'E02 branch-local wrap: ETH->USDC split 50/50 with a raw-ETH sibling (UniswapV4) -> no root wrap -> member 0 wraps INSIDE its try; on revert the wrap rolls back and the WETH-based fallback re-wraps',
+      'E02 branch-local wrap: ETH->USDC split 50/50 with a raw-ETH sibling (FluidDex) -> no root wrap -> member 0 wraps INSIDE its try; on revert the wrap rolls back and the WETH-based fallback re-wraps',
     path: ['ETH', 'USDC'],
     amount: ETH_0_01,
     hops: [
       {
         split: [50, 50],
         fabricatedMemberIndex: 0,
-        pricingDexes: [undefined, 'UniswapV4'],
+        pricingDexes: [undefined, 'FluidDex'],
       },
     ],
   },
   {
     name: 'eth-dest-mixed-wrapness-e01',
     description:
-      'E01 mixed wrap-ness on ETH dest (no guard needed: E01 threads per-branch via raw return): USDC->ETH, primary WETH-based, fallback raw-ETH UniswapV4',
+      'E01 mixed wrap-ness on ETH dest (no guard needed: E01 threads per-branch via raw return): USDC->ETH, primary WETH-based, fallback raw-ETH FluidDex',
     path: ['USDC', 'ETH'],
     amount: USDC_10,
-    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'UniswapV4' }],
+    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'FluidDex' }],
   },
   {
     name: 'megaswap-fallback-in-route',
@@ -212,19 +212,25 @@ export const SCENARIOS: ScenarioSpec[] = [
     ],
   },
   {
-    name: 'eth-dest-split-mixed-wrapness-runs-plain',
+    name: 'eth-dest-split-mixed-wrapness',
     description:
-      'NEGATIVE, E02 guard: USDC->ETH split 50/50, member 0 primary WETH-based with raw-ETH UniswapV4 fallback -> mixed wrap-ness on ETH dest is guarded, no group is encoded, the reverting primary runs plain and the tx fails',
+      'E02 OUTPUT normalization (split): USDC->ETH split 50/50, member 0 primary WETH-based with raw-ETH FluidDex fallback -> group encoded; the fallback delivers ETH straight to Augustus (sent-outcome), sibling WETH threads through the usual unwrap machinery',
     path: ['USDC', 'ETH'],
     amount: USDC_10,
     hops: [
       {
         split: [50, 50],
         fabricatedMemberIndex: 0,
-        fallbackPricingDex: 'UniswapV4',
+        fallbackPricingDex: 'FluidDex',
       },
     ],
-    expectGroup: false,
-    expectSuccess: false,
+  },
+  {
+    name: 'eth-dest-mixed-wrapness-whole-hop',
+    description:
+      'E02 OUTPUT normalization (whole-hop, flag 11): USDT->USDC->ETH, hop1 fabricated WETH-based primary with raw-ETH FluidDex fallback -> group threads via WETH balance check; fallback sent-outcome leaves it at 0 and Augustus receives the ETH directly',
+    path: ['USDT', 'USDC', 'ETH'],
+    amount: USDT_10,
+    hops: [{}, { fabricatedMemberIndex: 0, fallbackPricingDex: 'FluidDex' }],
   },
 ];

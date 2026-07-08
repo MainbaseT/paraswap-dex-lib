@@ -399,6 +399,22 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       return this.buildSingleSwapCallData(params);
     }
 
+    // Guard: on an ETH-dest hop a raw-ETH primary delivers to Augustus itself,
+    // but a WETH-based fallback would leave WETH stranded on the executor
+    // (nothing after the group unwraps/sends it — the route was shaped by the
+    // primary). Until that direction is normalized, run the primary plain.
+    const guardSwap =
+      priceRoute.bestRoute[0].swaps[
+        Math.min(index, priceRoute.bestRoute[0].swaps.length - 1)
+      ];
+    if (
+      isETHAddress(guardSwap.destToken) &&
+      !exchangeParams[index].needWrapNative &&
+      Boolean(fallbackParam.needWrapNative)
+    ) {
+      return this.buildSingleSwapCallData(params);
+    }
+
     // try-block: the primary's normal per-swap calldata (approve/wrap/swap, contiguous).
     const tryBlock = this.buildSingleSwapCallData(params);
 

@@ -217,6 +217,7 @@ export class GenericSwapTransactionBuilder {
                   minMaxAmount,
                   bytecodeBuilder,
                   getDexParamOptions,
+                  true, // isGroupFallback — keep ETH-dest output on the executor
                 )
               : undefined;
 
@@ -762,6 +763,7 @@ export class GenericSwapTransactionBuilder {
     minMaxAmount: string,
     dexNeedWrapNative: boolean,
     executionContractAddress: string,
+    forceExecutorRecipientOnEthDest = false,
   ): {
     srcToken: Address;
     destToken: Address;
@@ -828,7 +830,12 @@ export class GenericSwapTransactionBuilder {
       recipient:
         needToWithdrawAfterSwap ||
         !isLastSwap ||
-        priceRoute.side === SwapSide.BUY
+        priceRoute.side === SwapSide.BUY ||
+        // A revertable group's fallback on an ETH-dest hop must leave its
+        // output ON the executor: direct delivery to Augustus can't be
+        // reconciled with the try branch's end state (the post-group
+        // machinery would double-send the threaded amount).
+        (forceExecutorRecipientOnEthDest && isETHAddress(swap.destToken))
           ? executionContractAddress
           : this.dexAdapterService.dexHelper.config.data.augustusV6Address!,
       srcAmount: _srcAmount,
@@ -850,6 +857,7 @@ export class GenericSwapTransactionBuilder {
     minMaxAmount: string,
     bytecodeBuilder: ExecutorBytecodeBuilder,
     getDexParamOptions?: GetDexParamOptions,
+    isGroupFallback = false,
   ): Promise<{
     dexParams: DexExchangeParamWithBooleanNeedWrapNative;
     wethDeposit: bigint;
@@ -888,6 +896,7 @@ export class GenericSwapTransactionBuilder {
       minMaxAmount,
       dexNeedWrapNative,
       executorAddress,
+      isGroupFallback,
     );
 
     let dexParams: DexExchangeParam;
