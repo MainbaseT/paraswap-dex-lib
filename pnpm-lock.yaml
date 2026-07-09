@@ -53,8 +53,8 @@ importers:
         specifier: ^0.4.1
         version: 0.4.1(bufferutil@4.1.0)(encoding@0.1.13)(typescript@5.9.3)(utf-8-validate@6.0.6)
       '@paraswap/core':
-        specifier: 2.4.4-fallback.0
-        version: 2.4.4-fallback.0
+        specifier: 2.4.4
+        version: 2.4.4
       '@types/ws':
         specifier: ^8.5.12
         version: 8.18.1
@@ -1157,10 +1157,10 @@ packages:
         integrity: sha512-aENl5zjS0y4ag7PLEq/hHgaAH4XpN5M4Zc7Igt/03D+W6t6tgScG9on2gXKkEUErcgnZ79qnvzKhaU6QgzoBAQ==,
       }
 
-  '@paraswap/core@2.4.4-fallback.0':
+  '@paraswap/core@2.4.4':
     resolution:
       {
-        integrity: sha512-3MARNIsFiDcrx1SuPKfpK7A9Z9aHtlb8F8dlxSZXHv22m1Q0CsZBkKlcM+TS2A6HL6VA5iJVB9Q4b5Lff7sDKA==,
+        integrity: sha512-n6qa1K977MX2KlNpvBPS7+XqqMsmAdikgjtBohX8MKmCKjrwheEi/dLqrc5YWGhOcpG4ejmpXBJeRow6NZwxSQ==,
       }
 
   '@paraswap/sdk@6.9.1':
@@ -8171,7 +8171,7 @@ snapshots:
 
   '@paraswap/core@2.2.0': {}
 
-  '@paraswap/core@2.4.4-fallback.0': {}
+  '@paraswap/core@2.4.4': {}
 
   '@paraswap/sdk@6.9.1(axios@0.27.2)(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(typescript@5.9.3)(web3@1.6.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
     dependencies:
