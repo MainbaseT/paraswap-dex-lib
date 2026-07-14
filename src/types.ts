@@ -184,6 +184,13 @@ export type DexExchangeParam = {
   insertFromAmountPos?: number;
   amountsPacked128?: boolean;
   permit2Approval?: boolean;
+  // Build-time only, set by the transaction builder (never returned by
+  // getDexParam): true when this swap was built with the executor as its
+  // recipient. Only ever set on revertable-group FALLBACK params, where the
+  // Executor01 flag builders use it to force the last-hop dest-balance check
+  // (so the group threads the fallback's real output to the route-level
+  // executor->Augustus forward that the false-recipient primary shaped).
+  deliversToExecutor?: boolean;
 };
 
 export type DexExchangeParamWithBooleanNeedWrapNative = DexExchangeParam & {

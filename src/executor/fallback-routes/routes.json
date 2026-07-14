@@ -2687,6 +2687,202 @@
         "srcUSD": "0",
         "destUSD": "0"
       }
+    },
+    {
+      "name": "single-hop-fallback-curve",
+      "description": "E01 case D (recipient-capable primary + false-recipient fallback): USDC->USDT, the Curve single-pool fallback (dexFuncHasRecipient=false) leaves its output on the executor while the primary would have delivered to Augustus — the group must forward it inside the fallback block. Repro of prod native->curvev1stableng / metric->dodov2 fails.",
+      "network": 42161,
+      "generatedAt": "2026-07-14T20:15:58.122Z",
+      "slippageBps": 300,
+      "expectGroup": true,
+      "expectSuccess": true,
+      "priceRoute": {
+        "blockNumber": 483877115,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "destDecimals": 6,
+        "destAmount": "10004492",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                "destDecimals": 6,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "10000000",
+                    "destAmount": "10004492",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000000000000989680",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "CurveV1StableNg",
+                      "srcAmount": "10000000",
+                      "destAmount": "10004492",
+                      "percent": 100,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                            "exchange": "0x49b720f1aab26260beaec93a7beb5bf2925b2a8f",
+                            "i": 0,
+                            "j": 1,
+                            "underlyingSwap": false,
+                            "n_coins": 2
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x49b720f1aab26260beaec93a7beb5bf2925b2a8f"
+                      ],
+                      "poolIdentifiers": [
+                        "CurveV1StableNg_0x49b720f1aab26260beaec93a7beb5bf2925b2a8f_false"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
+    },
+    {
+      "name": "split-member-fallback-curve",
+      "description": "E02 counterpart of case D: USDC->USDT split 50/50, member 0 falls back to a Curve single-pool quote (false-recipient); E02 appends its executor->Augustus forward per-branch, so the fallback block must self-deliver.",
+      "network": 42161,
+      "generatedAt": "2026-07-14T20:15:58.451Z",
+      "slippageBps": 300,
+      "expectGroup": true,
+      "expectSuccess": true,
+      "priceRoute": {
+        "blockNumber": 483877117,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "destDecimals": 6,
+        "destAmount": "9943674",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                "destDecimals": 6,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "5000000",
+                    "destAmount": "5002247",
+                    "percent": 50,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef00000000000000000000000000000000000000000000000000000000004c4b40",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "CurveV1StableNg",
+                      "srcAmount": "5000000",
+                      "destAmount": "5002247",
+                      "percent": 50,
+                      "data": {
+                        "path": [
+                          {
+                            "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                            "tokenOut": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                            "exchange": "0x49b720f1aab26260beaec93a7beb5bf2925b2a8f",
+                            "i": 0,
+                            "j": 1,
+                            "underlyingSwap": false,
+                            "n_coins": 2
+                          }
+                        ]
+                      },
+                      "poolAddresses": [
+                        "0x49b720f1aab26260beaec93a7beb5bf2925b2a8f"
+                      ],
+                      "poolIdentifiers": [
+                        "CurveV1StableNg_0x49b720f1aab26260beaec93a7beb5bf2925b2a8f_false"
+                      ]
+                    }
+                  },
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "5000000",
+                    "destAmount": "4941427",
+                    "percent": 50,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                          "tokenOut": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0xd7e7ad63359e2aa9e841f6e1326fb7e69479a50b"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0xaf88d065e77c8cc2239327c5edb3a432268e5831_0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9_10000"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
     }
   ]
 }

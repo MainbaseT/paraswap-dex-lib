@@ -35,6 +35,7 @@ import { Weth } from './dex/weth/weth';
 import ERC20ABI from './abi/erc20.json';
 import { ExecutorDetector } from './executor/ExecutorDetector';
 import { ExecutorBytecodeBuilder } from './executor/ExecutorBytecodeBuilder';
+import { Executors } from './executor/types';
 import { IDexTxBuilder } from './dex/idex';
 import {
   ContractMethod,
@@ -206,6 +207,18 @@ export class GenericSwapTransactionBuilder {
             // Revertable fallback alternative attached during pricing (api).
             // Build it the same way as the primary so its setup (approve/wrap)
             // is encoded inside the group's fallback branch.
+            //
+            // Executor01 shapes its route-level executor->Augustus forward off
+            // the PRIMARY's dexFuncHasRecipient (buildByteCode). When that
+            // primary keeps its output on the executor (=false), the fallback
+            // must end there too — so it is built with the executor as its
+            // recipient (and flagged deliversToExecutor for the balance check).
+            // Executor02 appends its forward per-branch from each branch's own
+            // param, so it needs no recipient forcing.
+            const groupPrimaryDeliversToExecutor =
+              bytecodeBuilder.type === Executors.ONE &&
+              !primary.dexParams.dexFuncHasRecipient;
+
             const seFallback = se.fallback;
             const fallback = seFallback
               ? await this.buildSingleExchangeParam(
@@ -218,6 +231,7 @@ export class GenericSwapTransactionBuilder {
                   bytecodeBuilder,
                   getDexParamOptions,
                   true, // isGroupFallback — keep ETH-dest output on the executor
+                  groupPrimaryDeliversToExecutor,
                 )
               : undefined;
 
@@ -764,6 +778,10 @@ export class GenericSwapTransactionBuilder {
     dexNeedWrapNative: boolean,
     executionContractAddress: string,
     forceExecutorRecipientOnEthDest = false,
+    // Executor01 group fallback whose primary keeps output on the executor
+    // (dexFuncHasRecipient=false): the fallback must end there too, so the
+    // route-level executor->Augustus forward finds the funds.
+    groupPrimaryDeliversToExecutor = false,
   ): {
     srcToken: Address;
     destToken: Address;
@@ -835,7 +853,10 @@ export class GenericSwapTransactionBuilder {
         // output ON the executor: direct delivery to Augustus can't be
         // reconciled with the try branch's end state (the post-group
         // machinery would double-send the threaded amount).
-        (forceExecutorRecipientOnEthDest && isETHAddress(swap.destToken))
+        (forceExecutorRecipientOnEthDest && isETHAddress(swap.destToken)) ||
+        // Executor01 group fallback behind a false-recipient primary: the
+        // route-level forward expects the output on the executor.
+        groupPrimaryDeliversToExecutor
           ? executionContractAddress
           : this.dexAdapterService.dexHelper.config.data.augustusV6Address!,
       srcAmount: _srcAmount,
@@ -858,6 +879,7 @@ export class GenericSwapTransactionBuilder {
     bytecodeBuilder: ExecutorBytecodeBuilder,
     getDexParamOptions?: GetDexParamOptions,
     isGroupFallback = false,
+    groupPrimaryDeliversToExecutor = false,
   ): Promise<{
     dexParams: DexExchangeParamWithBooleanNeedWrapNative;
     wethDeposit: bigint;
@@ -897,6 +919,7 @@ export class GenericSwapTransactionBuilder {
       dexNeedWrapNative,
       executorAddress,
       isGroupFallback,
+      isGroupFallback && groupPrimaryDeliversToExecutor,
     );
 
     let dexParams: DexExchangeParam;
@@ -935,6 +958,14 @@ export class GenericSwapTransactionBuilder {
 
     if (typeof dexParams.needWrapNative === 'function') {
       dexParams.needWrapNative = dexParams.needWrapNative(priceRoute, swap, se);
+    }
+
+    // Case C marker (Executor01): group fallback redirected to the executor
+    // because its primary keeps output there — the flag builders force this
+    // block's dest-balance check so the group threads the REAL fallback output
+    // to the route-level forward. Never set on primaries.
+    if (isGroupFallback && groupPrimaryDeliversToExecutor) {
+      dexParams.deliversToExecutor = true;
     }
 
     return {

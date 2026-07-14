@@ -43,6 +43,28 @@ export const SCENARIOS: ScenarioSpec[] = [
     hops: [{}, { fabricatedMemberIndex: 0 }, {}],
   },
   {
+    name: 'single-hop-fallback-curve',
+    description:
+      'E01 case D (recipient-capable primary + false-recipient fallback): USDC->USDT, the Curve single-pool fallback (dexFuncHasRecipient=false) leaves its output on the executor while the primary would have delivered to Augustus — the group must forward it inside the fallback block. Repro of prod native->curvev1stableng / metric->dodov2 fails.',
+    path: ['USDC', 'USDT'],
+    amount: USDC_10,
+    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'CurveV1StableNg' }],
+  },
+  {
+    name: 'split-member-fallback-curve',
+    description:
+      'E02 counterpart of case D: USDC->USDT split 50/50, member 0 falls back to a Curve single-pool quote (false-recipient); E02 appends its executor->Augustus forward per-branch, so the fallback block must self-deliver.',
+    path: ['USDC', 'USDT'],
+    amount: USDC_10,
+    hops: [
+      {
+        split: [50, 50],
+        fabricatedMemberIndex: 0,
+        fallbackPricingDex: 'CurveV1StableNg',
+      },
+    ],
+  },
+  {
     name: 'eth-src-wrap-in-try',
     description:
       'E01 wrap rollback: ETH->USDC, primary (needs WETH) wraps inside the try; on revert the wrap rolls back and the fallback re-wraps',

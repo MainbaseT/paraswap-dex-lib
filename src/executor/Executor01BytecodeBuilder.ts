@@ -66,6 +66,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       specialDexSupportsInsertFromAmount,
       swappedAmountNotPresentInExchangeData,
       sendEthButSupportsInsertFromAmount,
+      deliversToExecutor,
     } = exchangeParam;
 
     const isWETHSrc =
@@ -101,7 +102,13 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       dexFlag = forcePreventInsertFromAmount
         ? Flag.DONT_INSERT_FROM_AMOUNT_CHECK_ETH_BALANCE_AFTER_SWAP
         : Flag.INSERT_FROM_AMOUNT_CHECK_ETH_BALANCE_AFTER_SWAP; // 4 or 7
-    } else if (!dexFuncHasRecipient || (isEthDest && needUnwrap)) {
+    } else if (
+      !dexFuncHasRecipient ||
+      // group fallback redirected to the executor (case C) — capture its real
+      // output so the group threads it to the route-level forward
+      deliversToExecutor ||
+      (isEthDest && needUnwrap)
+    ) {
       dexFlag = forcePreventInsertFromAmount
         ? Flag.DONT_INSERT_FROM_AMOUNT_CHECK_SRC_TOKEN_BALANCE_AFTER_SWAP
         : Flag.INSERT_FROM_AMOUNT_CHECK_SRC_TOKEN_BALANCE_AFTER_SWAP; // 8 or 11
@@ -162,6 +169,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       specialDexSupportsInsertFromAmount,
       swappedAmountNotPresentInExchangeData,
       sendEthButSupportsInsertFromAmount,
+      deliversToExecutor,
     } = exchangeParam;
 
     const isLastSwap =
@@ -184,7 +192,8 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       needWrapNative && isEthDest && maybeWethCallData?.withdraw;
 
     const forceBalanceOfCheck = isLastSwap
-      ? !dexFuncHasRecipient || needUnwrap
+      ? // deliversToExecutor: group fallback redirected to the executor (case C)
+        !dexFuncHasRecipient || needUnwrap || !!deliversToExecutor
       : true;
 
     const needSendEth = isEthSrc && !needWrapNative;
@@ -426,11 +435,35 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       fallbackExchangeParams,
       maybeWethCallData,
     );
-    const fallbackBlock = this.buildSingleSwapCallData({
+    let fallbackBlock = this.buildSingleSwapCallData({
       ...params,
       exchangeParams: fallbackExchangeParams,
       flags: fallbackFlags,
     });
+
+    // Case D: recipient-capable primary (delivers to Augustus itself — so
+    // buildByteCode appends NO route-level forward) with a false-recipient
+    // fallback that leaves its output on the executor. Append the
+    // executor->Augustus forward INSIDE the fallback block so both branches
+    // end with Augustus funded. The transferred amount is inserted from the
+    // threaded fromAmount, which the fallback's dest-balance check (forced by
+    // !dexFuncHasRecipient) has just set to its real output.
+    const isLastSwap = index === priceRoute.bestRoute[0].swaps.length - 1;
+    if (
+      isLastSwap &&
+      !isETHAddress(priceRoute.destToken) &&
+      exchangeParams[index].dexFuncHasRecipient &&
+      !fallbackParam.dexFuncHasRecipient
+    ) {
+      const transferCallData = this.buildTransferCallData(
+        this.erc20Interface.encodeFunctionData('transfer', [
+          this.dexHelper.config.data.augustusV6Address,
+          priceRoute.destAmount,
+        ]),
+        priceRoute.destToken,
+      );
+      fallbackBlock = hexConcat([fallbackBlock, transferCallData]);
+    }
 
     // payload = [tryLen(4)][fallbackLen(4)][try-block][fallback-block]
     const payload = hexConcat([
