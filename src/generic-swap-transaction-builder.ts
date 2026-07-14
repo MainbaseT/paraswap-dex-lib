@@ -217,7 +217,7 @@ export class GenericSwapTransactionBuilder {
                   minMaxAmount,
                   bytecodeBuilder,
                   getDexParamOptions,
-                  true, // isGroupFallback — keep the fallback's output on the executor
+                  true, // isGroupFallback — keep ETH-dest output on the executor
                 )
               : undefined;
 
@@ -763,7 +763,7 @@ export class GenericSwapTransactionBuilder {
     minMaxAmount: string,
     dexNeedWrapNative: boolean,
     executionContractAddress: string,
-    forceExecutorRecipient = false,
+    forceExecutorRecipientOnEthDest = false,
   ): {
     srcToken: Address;
     destToken: Address;
@@ -831,19 +831,11 @@ export class GenericSwapTransactionBuilder {
         needToWithdrawAfterSwap ||
         !isLastSwap ||
         priceRoute.side === SwapSide.BUY ||
-        // Both branches of a revertable group must leave their output ON the
-        // executor so the single post-group forward is correct regardless of
-        // which branch ran. A dex with dexFuncHasRecipient=false always
-        // delivers to the executor; one with =true honours the requested
-        // recipient — so if we let a last-hop group member request Augustus,
-        // a true-recipient member (e.g. UniswapV4) delivers straight to
-        // Augustus while its false-recipient counterpart (e.g. Dexalot) leaves
-        // it on the executor, and the post-group forward then double-sends /
-        // reverts on an empty executor. Force the executor for group members:
-        // the fallback build (forceExecutorRecipient) and the primary of a
-        // group (this hop carries a fallback alternative).
-        forceExecutorRecipient ||
-        !!se.fallback
+        // A revertable group's fallback on an ETH-dest hop must leave its
+        // output ON the executor: direct delivery to Augustus can't be
+        // reconciled with the try branch's end state (the post-group
+        // machinery would double-send the threaded amount).
+        (forceExecutorRecipientOnEthDest && isETHAddress(swap.destToken))
           ? executionContractAddress
           : this.dexAdapterService.dexHelper.config.data.augustusV6Address!,
       srcAmount: _srcAmount,
