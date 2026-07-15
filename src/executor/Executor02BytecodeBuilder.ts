@@ -808,6 +808,31 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       }
     }
 
+    // Normalize the fallback block's OUTPUT on a WETH-dest final hop when the
+    // fallback was re-encoded to deliver on the executor (needUnwrapNative
+    // raw-ETH dex — see buildSingleExchangeParam): after its wrap-after step
+    // the executor holds the WETH, but the try branch (recipient-capable
+    // primary) delivered straight to Augustus and shaped no forward — append
+    // one inside the block, amount inserted from the threaded output.
+    if (
+      isLastSwap &&
+      fallbackParam.deliversToExecutor &&
+      !isETHAddress(swap.destToken) &&
+      priceRoute.destToken === swap.destToken &&
+      exchangeParams[exchangeParamIndex].dexFuncHasRecipient
+    ) {
+      fallbackBlock = hexConcat([
+        fallbackBlock,
+        this.buildTransferCallData(
+          this.erc20Interface.encodeFunctionData('transfer', [
+            this.dexHelper.config.data.augustusV6Address,
+            swapExchange.destAmount,
+          ]),
+          swap.destToken,
+        ),
+      ]);
+    }
+
     // payload = [padding(28)][tryLen(4)][fallbackLen(4)][try][fallback]
     let payload = hexConcat([
       ZEROS_28_BYTES,

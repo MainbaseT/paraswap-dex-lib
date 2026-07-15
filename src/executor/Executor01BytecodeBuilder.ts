@@ -454,18 +454,20 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
     });
 
     // Case D: recipient-capable primary (delivers to Augustus itself — so
-    // buildByteCode appends NO route-level forward) with a false-recipient
-    // fallback that leaves its output on the executor. Append the
-    // executor->Augustus forward INSIDE the fallback block so both branches
-    // end with Augustus funded. The transferred amount is inserted from the
-    // threaded fromAmount, which the fallback's dest-balance check (forced by
-    // !dexFuncHasRecipient) has just set to its real output.
+    // buildByteCode appends NO route-level forward) with a fallback whose
+    // output stays on the executor: either a false-recipient dex, or a
+    // needUnwrapNative raw-ETH dex on a WETH-dest hop that was re-encoded to
+    // deliver on the executor for its wrap-after (deliversToExecutor). Append
+    // the executor->Augustus forward INSIDE the fallback block so both
+    // branches end with Augustus funded. The transferred amount is inserted
+    // from the threaded fromAmount, which the fallback's dest-balance /
+    // ETH-balance check has just set to its real output.
     const isLastSwap = index === priceRoute.bestRoute[0].swaps.length - 1;
     if (
       isLastSwap &&
       !isETHAddress(priceRoute.destToken) &&
       exchangeParams[index].dexFuncHasRecipient &&
-      !fallbackParam.dexFuncHasRecipient
+      (!fallbackParam.dexFuncHasRecipient || !!fallbackParam.deliversToExecutor)
     ) {
       const transferCallData = this.buildTransferCallData(
         this.erc20Interface.encodeFunctionData('transfer', [
