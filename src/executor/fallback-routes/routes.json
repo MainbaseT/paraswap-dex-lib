@@ -2883,6 +2883,113 @@
         "srcUSD": "0",
         "destUSD": "0"
       }
+    },
+    {
+      "name": "mid-route-eth-mixed-wrapness-e01",
+      "description": "E01 MID-ROUTE mixed wrap-ness normalization: USDC->ETH->USDT (100% hops -> E01), hop0 fabricated WETH-based primary with raw-ETH FluidDex fallback, hop1 WETH-consuming UniswapV3 -> the primary threads WETH (no unwrap before a needWrapNative hop), so the fallback block wraps its raw-native output to match",
+      "network": 42161,
+      "generatedAt": "2026-07-16T11:44:09.261Z",
+      "slippageBps": 300,
+      "expectGroup": true,
+      "expectSuccess": true,
+      "priceRoute": {
+        "blockNumber": 484445667,
+        "network": 42161,
+        "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "srcDecimals": 6,
+        "srcAmount": "10000000",
+        "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "destDecimals": 6,
+        "destAmount": "9958970",
+        "bestRoute": [
+          {
+            "percent": 100,
+            "swaps": [
+              {
+                "srcToken": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "srcDecimals": 6,
+                "destToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "destDecimals": 18,
+                "swapExchanges": [
+                  {
+                    "exchange": "Native",
+                    "srcAmount": "10000000",
+                    "destAmount": "5304108812000000",
+                    "percent": 100,
+                    "data": {
+                      "quote": {
+                        "txRequest": {
+                          "target": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                          "calldata": "0x23b872dd000000000000000000000000000000000000000000000000000000000000dead000000000000000000000000000000000000000000000000000000000000beef0000000000000000000000000000000000000000000000000000000000989680",
+                          "value": "0"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "exchange": "FluidDex",
+                      "srcAmount": "10000000",
+                      "destAmount": "5304108812000000",
+                      "percent": 100,
+                      "data": {
+                        "poolId": "FluidDex_0xde632c3a214d5f14c1d8ddf0b92f8bcd188fee45"
+                      },
+                      "poolAddresses": [
+                        "0xde632c3a214d5f14c1d8ddf0b92f8bcd188fee45"
+                      ],
+                      "poolIdentifiers": [
+                        "FluidDex_0xde632c3a214d5f14c1d8ddf0b92f8bcd188fee45"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "srcToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                "srcDecimals": 18,
+                "destToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                "destDecimals": 6,
+                "swapExchanges": [
+                  {
+                    "exchange": "UniswapV3",
+                    "srcAmount": "5304108812000000",
+                    "destAmount": "9958970",
+                    "percent": 100,
+                    "data": {
+                      "path": [
+                        {
+                          "tokenIn": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                          "tokenOut": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                          "fee": "10000",
+                          "currentFee": "10000"
+                        }
+                      ]
+                    },
+                    "poolAddresses": [
+                      "0x58039203442c9f2a45d5536bd021a383c7f3035c"
+                    ],
+                    "poolIdentifiers": [
+                      "UniswapV3_0x82af49447d8a07e3bd95bd0d56f35241523fbab1_0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9_10000"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "gasCostUSD": "0",
+        "gasCost": "0",
+        "others": [],
+        "side": "SELL",
+        "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+        "tokenTransferProxy": "",
+        "version": "6.2",
+        "contractMethod": "swapExactAmountIn",
+        "partner": "test",
+        "maxImpactReached": false,
+        "hmac": "0",
+        "srcUSD": "0",
+        "destUSD": "0"
+      }
     }
   ]
 }

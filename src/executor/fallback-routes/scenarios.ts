@@ -255,4 +255,12 @@ export const SCENARIOS: ScenarioSpec[] = [
     amount: USDT_10,
     hops: [{}, { fabricatedMemberIndex: 0, fallbackPricingDex: 'FluidDex' }],
   },
+  {
+    name: 'mid-route-eth-mixed-wrapness-e01',
+    description:
+      'E01 MID-ROUTE mixed wrap-ness normalization: USDC->ETH->USDT (100% hops -> E01), hop0 fabricated WETH-based primary with raw-ETH FluidDex fallback, hop1 WETH-consuming UniswapV3 -> the primary threads WETH (no unwrap before a needWrapNative hop), so the fallback block wraps its raw-native output to match',
+    path: ['USDC', 'ETH', 'USDT'],
+    amount: USDC_10,
+    hops: [{ fabricatedMemberIndex: 0, fallbackPricingDex: 'FluidDex' }, {}],
+  },
 ];

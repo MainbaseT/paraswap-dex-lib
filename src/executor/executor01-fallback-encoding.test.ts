@@ -259,28 +259,89 @@ describe('Executor01 revertable group: ETH-dest mixed wrap-ness normalization', 
     expect(grouped.length).toBe(match!.index! + 64 + 56 + (sizeBytes - 28) * 2);
   });
 
-  it('keeps a mid-route mixed wrap-ness hop plain (not normalized)', () => {
-    const route = makeRoute([makeSwap(USDT, ETH), makeSwap(ETH, USDC)]);
-    const hop2 = {
-      needWrapNative: false,
-      dexFuncHasRecipient: true,
-      exchangeData: '0xcafebabe' + pad32(DEST_AMOUNT),
-      insertFromAmountPos: 4,
-      targetExchange: '0x3333333333333333333333333333333333333333',
-    };
+  // --- MID-ROUTE ETH-dest mixed wrap-ness: the fallback block must end in the
+  // same token form the primary threads to the next hop. ---
 
-    const grouped = innerSteps(
+  const WITHDRAW_SEL = '2e1a7d4d';
+  const DEPOSIT_SEL = 'd0e30db0';
+  const count = (haystack: string, needle: string): number =>
+    (haystack.match(new RegExp(needle, 'g')) || []).length;
+
+  const parseGroup = (steps: string) => {
+    const m = steps.match(GROUP_STEP_MARKER);
+    expect(m).not.toBeNull();
+    const payload = steps.slice(m!.index! + 64 + 56);
+    const tryLen = parseInt(payload.slice(0, 8), 16) * 2;
+    const fallbackLen = parseInt(payload.slice(8, 16), 16) * 2;
+    return {
+      tryBlock: payload.slice(16, 16 + tryLen),
+      fallbackBlock: payload.slice(16 + tryLen, 16 + tryLen + fallbackLen),
+    };
+  };
+
+  const midRouteBuild = (
+    primaryHop: object,
+    fallbackHop: object,
+    nextHop: object,
+  ): string =>
+    innerSteps(
       builder.buildByteCode(
-        route,
+        makeRoute([makeSwap(USDT, ETH), makeSwap(ETH, USDC)]),
         [
-          { ...rawPrimary, fallbackParam: wethFallback },
-          hop2,
+          { ...primaryHop, fallbackParam: fallbackHop },
+          nextHop,
         ] as unknown as DexExchangeBuildParam[],
         NULL_ADDRESS,
         maybeWethCallData as any,
       ),
     );
 
-    expect(grouped).not.toMatch(GROUP_STEP_MARKER);
+  const rawNextHop = {
+    needWrapNative: false,
+    dexFuncHasRecipient: true,
+    exchangeData: '0xcafebabe' + pad32(DEST_AMOUNT),
+    insertFromAmountPos: 4,
+    targetExchange: '0x3333333333333333333333333333333333333333',
+  };
+  const wethNextHop = { ...rawNextHop, needWrapNative: true };
+
+  it('mid-route: raw primary + WETH fallback + raw next hop — group encoded, fallback unwraps (unit-level), raw threading matches', () => {
+    const { tryBlock, fallbackBlock } = parseGroup(
+      midRouteBuild(rawPrimary, wethFallback, rawNextHop),
+    );
+    expect(count(tryBlock, WITHDRAW_SEL)).toBe(0);
+    expect(count(fallbackBlock, WITHDRAW_SEL)).toBe(1);
+    expect(count(fallbackBlock, DEPOSIT_SEL)).toBe(0);
+  });
+
+  it('mid-route: raw primary + WETH fallback + WETH next hop — fallback unwraps to match the raw threading form', () => {
+    const { tryBlock, fallbackBlock } = parseGroup(
+      midRouteBuild(rawPrimary, wethFallback, wethNextHop),
+    );
+    // Threading form is raw native (the next unit deposits its own input, as
+    // shaped by the raw primary), so the WETH-holding fallback must unwrap.
+    expect(count(tryBlock, WITHDRAW_SEL)).toBe(0);
+    expect(count(fallbackBlock, WITHDRAW_SEL)).toBe(1);
+    expect(count(fallbackBlock, DEPOSIT_SEL)).toBe(0);
+  });
+
+  it('mid-route: WETH primary + raw fallback + WETH next hop — fallback wraps to match the WETH threading form', () => {
+    const wethPrimary = {
+      ...wethFallback,
+      targetExchange: '0x2222222222222222222222222222222222222222',
+    };
+    const rawFallback = {
+      ...rawPrimary,
+      targetExchange: '0x1111111111111111111111111111111111111111',
+    };
+    const { tryBlock, fallbackBlock } = parseGroup(
+      midRouteBuild(wethPrimary, rawFallback, wethNextHop),
+    );
+    // The primary keeps WETH (its unit skips the unwrap before a
+    // needWrapNative hop), so the raw-native fallback must wrap its output.
+    expect(count(tryBlock, WITHDRAW_SEL)).toBe(0);
+    expect(count(tryBlock, DEPOSIT_SEL)).toBe(0);
+    expect(count(fallbackBlock, DEPOSIT_SEL)).toBe(1);
+    expect(count(fallbackBlock, WITHDRAW_SEL)).toBe(0);
   });
 });
