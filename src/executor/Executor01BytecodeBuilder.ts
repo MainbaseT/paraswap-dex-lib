@@ -420,19 +420,21 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       return this.buildSingleSwapCallData(params);
     }
 
-    // Guard: on an ETH-dest hop a raw-ETH primary delivers to Augustus itself,
-    // but a WETH-based fallback would leave WETH stranded on the executor
-    // (nothing after the group unwraps/sends it — the route was shaped by the
-    // primary). Until that direction is normalized, run the primary plain.
-    const guardSwap =
-      priceRoute.bestRoute[0].swaps[
-        Math.min(index, priceRoute.bestRoute[0].swaps.length - 1)
-      ];
-    if (
-      isETHAddress(guardSwap.destToken) &&
+    // Mixed wrap-ness on an ETH-dest hop: raw-native primary, WETH-based
+    // fallback. On the FINAL hop this is normalized: the fallback's own unit
+    // appends the unwrap (via the route-level withdraw template the fallback's
+    // accounting created), and when the primary delivers to Augustus itself
+    // the native send is appended inside the fallback block below. MID-ROUTE
+    // it is not normalized (raw ETH as an intermediate threading token is not
+    // modeled by the group's balance checks — same stance as Executor02): run
+    // the primary plain.
+    const groupSwap = priceRoute.bestRoute[0].swaps[index];
+    const isLastSwapHop = index === priceRoute.bestRoute[0].swaps.length - 1;
+    const mixedEthDestWethFallback =
+      isETHAddress(groupSwap.destToken) &&
       !exchangeParams[index].needWrapNative &&
-      Boolean(fallbackParam.needWrapNative)
-    ) {
+      Boolean(fallbackParam.needWrapNative);
+    if (mixedEthDestWethFallback && !isLastSwapHop) {
       return this.buildSingleSwapCallData(params);
     }
 
@@ -462,9 +464,8 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
     // branches end with Augustus funded. The transferred amount is inserted
     // from the threaded fromAmount, which the fallback's dest-balance /
     // ETH-balance check has just set to its real output.
-    const isLastSwap = index === priceRoute.bestRoute[0].swaps.length - 1;
     if (
-      isLastSwap &&
+      isLastSwapHop &&
       !isETHAddress(priceRoute.destToken) &&
       exchangeParams[index].dexFuncHasRecipient &&
       (!fallbackParam.dexFuncHasRecipient || !!fallbackParam.deliversToExecutor)
@@ -477,6 +478,26 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
         priceRoute.destToken,
       );
       fallbackBlock = hexConcat([fallbackBlock, transferCallData]);
+    }
+
+    // Final-hop ETH-dest mixed wrap-ness (mirrors Executor02's ethDestOutcome
+    // 'sent' vs 'weth'): the raw-native primary delivers to Augustus itself
+    // (recipient-capable), while the WETH-based fallback ends with its unwrap
+    // leaving raw native on the executor. Append the native send INSIDE the
+    // fallback block so both branches end with Augustus funded — the amount is
+    // the threaded fromAmount, which the unwrap's ETH-balance check has just
+    // set to the fallback's real output. buildByteCode suppresses its
+    // route-level send for this shape (it would re-send an unthreaded amount
+    // after the try branch, which keeps nothing on the executor).
+    if (
+      mixedEthDestWethFallback &&
+      isLastSwapHop &&
+      exchangeParams[index].dexFuncHasRecipient
+    ) {
+      fallbackBlock = hexConcat([
+        fallbackBlock,
+        this.buildFinalSpecialFlagCalldata(),
+      ]);
     }
 
     // payload = [tryLen(4)][fallbackLen(4)][try-block][fallback-block]
@@ -618,10 +639,25 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       swapsCalldata = hexConcat([swapsCalldata, transferCallData]);
     }
 
+    // A final-hop group whose raw-native primary delivers to Augustus itself
+    // sends the fallback's native output inside the fallback block (see
+    // buildRevertableGroup). The route-level withdraw template only exists
+    // because of that fallback's accounting — appending the send here would
+    // run it after the try branch too, with an unthreaded fromAmount and an
+    // empty executor balance.
+    const lastParam = exchangeParams[exchangeParams.length - 1];
+    const groupHandlesNativeSend =
+      isETHAddress(priceRoute.destToken) &&
+      !!lastParam.fallbackParam &&
+      Boolean(lastParam.fallbackParam.needWrapNative) &&
+      !lastParam.needWrapNative &&
+      lastParam.dexFuncHasRecipient;
+
     if (
-      (maybeWethCallData?.withdraw && isETHAddress(priceRoute.destToken)) ||
-      (!exchangeParams[exchangeParams.length - 1].dexFuncHasRecipient &&
-        isETHAddress(priceRoute.destToken))
+      !groupHandlesNativeSend &&
+      ((maybeWethCallData?.withdraw && isETHAddress(priceRoute.destToken)) ||
+        (!exchangeParams[exchangeParams.length - 1].dexFuncHasRecipient &&
+          isETHAddress(priceRoute.destToken)))
     ) {
       const finalSpecialFlagCalldata = this.buildFinalSpecialFlagCalldata();
       swapsCalldata = hexConcat([swapsCalldata, finalSpecialFlagCalldata]);

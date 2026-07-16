@@ -86,3 +86,201 @@ describe('Executor01BytecodeBuilder revertable fallback group (Style 2)', () => 
     expect(parseInt(sizeHex, 16)).toBe(byteLen(payload) + 28);
   });
 });
+
+describe('Executor01 revertable group: ETH-dest mixed wrap-ness normalization', () => {
+  let builder: Executor01BytecodeBuilder;
+
+  beforeEach(() => {
+    builder = new Executor01BytecodeBuilder(
+      new DummyDexHelper(Network.MAINNET),
+    );
+  });
+
+  const ETH = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+  const USDT = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+  const USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+  const WETH = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+
+  const SRC_AMOUNT = '1000000000';
+  const DEST_AMOUNT = '500000000000000000';
+
+  const pad32 = (n: string): string => BigInt(n).toString(16).padStart(64, '0');
+
+  // Raw-native RFQ-style primary: delivers native straight to its recipient.
+  const rawPrimary = {
+    needWrapNative: false,
+    dexFuncHasRecipient: true,
+    exchangeData: '0xdeadbeef' + pad32(SRC_AMOUNT),
+    insertFromAmountPos: 4,
+    targetExchange: '0x2222222222222222222222222222222222222222',
+  };
+
+  // WETH-based AMM fallback for the same hop.
+  const wethFallback = {
+    needWrapNative: true,
+    dexFuncHasRecipient: true,
+    exchangeData: '0xfeedc0de' + pad32(SRC_AMOUNT),
+    insertFromAmountPos: 4,
+    targetExchange: '0x1111111111111111111111111111111111111111',
+  };
+
+  const maybeWethCallData = {
+    withdraw: {
+      callee: WETH,
+      calldata: '0x2e1a7d4d' + pad32(DEST_AMOUNT),
+      value: '0',
+    },
+  };
+
+  const makeSwap = (srcToken: string, destToken: string) => ({
+    srcToken,
+    destToken,
+    swapExchanges: [
+      {
+        exchange: 'Dexalot',
+        srcAmount: SRC_AMOUNT,
+        destAmount: DEST_AMOUNT,
+        percent: 100,
+      },
+    ],
+  });
+
+  const makeRoute = (swaps: object[]): OptimalRate =>
+    ({
+      network: 1,
+      side: 'SELL',
+      srcToken: (swaps[0] as any).srcToken,
+      destToken: (swaps[swaps.length - 1] as any).destToken,
+      srcAmount: SRC_AMOUNT,
+      destAmount: DEST_AMOUNT,
+      bestRoute: [{ percent: 100, swaps }],
+      contractMethod: 'swapExactAmountIn',
+    } as unknown as OptimalRate);
+
+  // Group metadata word: zero target(20) + size(4) + zero positions(5) + 0xff + zero flag(2).
+  const GROUP_STEP_MARKER = /0{40}[0-9a-f]{8}0{10}ff0000/;
+
+  it('normalizes the final hop: group encoded, fallback block ends with the native send, route-level send suppressed', () => {
+    const route = makeRoute([makeSwap(USDT, ETH)]);
+    const finalFlag = (builder as any).buildFinalSpecialFlagCalldata();
+    const finalFlagHex = finalFlag.slice(2);
+
+    // Plain builds of each alternative as its own route: [unit][route-level send].
+    const plainPrimary = innerSteps(
+      builder.buildByteCode(
+        route,
+        [rawPrimary] as unknown as DexExchangeBuildParam[],
+        NULL_ADDRESS,
+        maybeWethCallData as any,
+      ),
+    );
+    const plainFallback = innerSteps(
+      builder.buildByteCode(
+        route,
+        [wethFallback] as unknown as DexExchangeBuildParam[],
+        NULL_ADDRESS,
+        maybeWethCallData as any,
+      ),
+    );
+    expect(plainPrimary.endsWith(finalFlagHex)).toBe(true);
+    expect(plainFallback.endsWith(finalFlagHex)).toBe(true);
+
+    const grouped = innerSteps(
+      builder.buildByteCode(
+        route,
+        [
+          { ...rawPrimary, fallbackParam: wethFallback },
+        ] as unknown as DexExchangeBuildParam[],
+        NULL_ADDRESS,
+        maybeWethCallData as any,
+      ),
+    );
+
+    // The group is encoded (guard no longer drops it on the final hop).
+    expect(grouped).toMatch(GROUP_STEP_MARKER);
+
+    // Parse the payload: [meta word][28-byte padding][tryLen][fallbackLen][try][fallback].
+    const payload = grouped.slice(64 + 28 * 2);
+    const tryLen = parseInt(payload.slice(0, 8), 16) * 2;
+    const fallbackLen = parseInt(payload.slice(8, 16), 16) * 2;
+    const tryBlock = payload.slice(16, 16 + tryLen);
+    const fallbackBlock = payload.slice(16 + tryLen, 16 + tryLen + fallbackLen);
+
+    // Nothing after the group step — the route-level native send is suppressed
+    // (the fallback block carries its own; the try branch delivered itself).
+    expect(grouped.length).toBe(64 + 28 * 2 + 16 + tryLen + fallbackLen);
+
+    // The try block is the primary's unit, byte-identical to a plain build
+    // (minus the route-level send, which a plain build appends after it).
+    expect(tryBlock).toBe(
+      plainPrimary.slice(0, plainPrimary.length - finalFlagHex.length),
+    );
+
+    // The fallback block is exactly what a standalone route through the
+    // fallback would encode: its unit (dex call + unwrap) + the native send.
+    expect(fallbackBlock).toBe(plainFallback);
+    expect(fallbackBlock.endsWith(finalFlagHex)).toBe(true);
+    // The unwrap rides inside the block (WETH.withdraw selector).
+    expect(fallbackBlock).toContain('2e1a7d4d');
+  });
+
+  it('normalizes the final hop of a multihop route the same way', () => {
+    const route = makeRoute([makeSwap(USDC, USDT), makeSwap(USDT, ETH)]);
+    const hop1 = {
+      needWrapNative: false,
+      dexFuncHasRecipient: false,
+      exchangeData: '0xcafebabe' + pad32(SRC_AMOUNT),
+      insertFromAmountPos: 4,
+      targetExchange: '0x3333333333333333333333333333333333333333',
+    };
+
+    const grouped = innerSteps(
+      builder.buildByteCode(
+        route,
+        [
+          hop1,
+          { ...rawPrimary, fallbackParam: wethFallback },
+        ] as unknown as DexExchangeBuildParam[],
+        NULL_ADDRESS,
+        maybeWethCallData as any,
+      ),
+    );
+
+    // The group is encoded and is the LAST step — no route-level native send
+    // after it (grouped calldata ends exactly where the group step ends).
+    const match = grouped.match(GROUP_STEP_MARKER);
+    expect(match).not.toBeNull();
+    const sizeBytes = parseInt(
+      grouped.slice(match!.index! + 40, match!.index! + 48),
+      16,
+    );
+    // step hex length = metadata word (64) + 28-byte padding (56) + payload
+    // (sizeBytes - 28 bytes).
+    expect(grouped.length).toBe(match!.index! + 64 + 56 + (sizeBytes - 28) * 2);
+  });
+
+  it('keeps a mid-route mixed wrap-ness hop plain (not normalized)', () => {
+    const route = makeRoute([makeSwap(USDT, ETH), makeSwap(ETH, USDC)]);
+    const hop2 = {
+      needWrapNative: false,
+      dexFuncHasRecipient: true,
+      exchangeData: '0xcafebabe' + pad32(DEST_AMOUNT),
+      insertFromAmountPos: 4,
+      targetExchange: '0x3333333333333333333333333333333333333333',
+    };
+
+    const grouped = innerSteps(
+      builder.buildByteCode(
+        route,
+        [
+          { ...rawPrimary, fallbackParam: wethFallback },
+          hop2,
+        ] as unknown as DexExchangeBuildParam[],
+        NULL_ADDRESS,
+        maybeWethCallData as any,
+      ),
+    );
+
+    expect(grouped).not.toMatch(GROUP_STEP_MARKER);
+  });
+});
