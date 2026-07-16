@@ -18,6 +18,7 @@ function testForNetwork(
   tokenBSymbol: string,
   tokenAAmount: string,
   tokenBAmount: string,
+  sides: SwapSide[] = [SwapSide.SELL, SwapSide.BUY],
 ) {
   const provider = new StaticJsonRpcProvider(
     generateConfig(network).privateHttpProvider,
@@ -31,10 +32,13 @@ function testForNetwork(
   const dexHelper = new DummyDexHelper(network);
   const fluidDex = new FluidDex(network, dexKey, dexHelper);
 
-  const sideToContractMethods = new Map([
+  const allSideContractMethods: [SwapSide, ContractMethod[]][] = [
     [SwapSide.SELL, [ContractMethod.swapExactAmountIn]],
     [SwapSide.BUY, [ContractMethod.swapExactAmountOut]],
-  ]);
+  ];
+  const sideToContractMethods = new Map(
+    allSideContractMethods.filter(([side]) => sides.includes(side)),
+  );
 
   describe(`${network}`, () => {
     sideToContractMethods.forEach((contractMethods, side) =>
@@ -116,6 +120,8 @@ describe('FluidDex E2E', () => {
 
     // WETH is priced via the native-ETH pools: the executor unwraps WETH
     // before the swap and wraps the native output after (needUnwrapNative).
+    // SELL only: WETH-src BUY is deliberately unpriced (no rewrap path for
+    // the pool's ETH refund of the unused max input).
     describe('WETH -> wstETH', () => {
       const tokenASymbol: string = 'wstETH';
       const tokenBSymbol: string = 'WETH';
@@ -130,6 +136,7 @@ describe('FluidDex E2E', () => {
         tokenBSymbol,
         tokenAAmount,
         tokenBAmount,
+        [SwapSide.SELL],
       );
     });
 
