@@ -114,6 +114,25 @@ describe('FluidDex E2E', () => {
       );
     });
 
+    // WETH is priced via the native-ETH pools: the executor unwraps WETH
+    // before the swap and wraps the native output after (needUnwrapNative).
+    describe('WETH -> wstETH', () => {
+      const tokenASymbol: string = 'wstETH';
+      const tokenBSymbol: string = 'WETH';
+
+      const tokenAAmount: string = '100000000000000';
+      const tokenBAmount: string = '3500000000000000000';
+
+      testForNetwork(
+        network,
+        dexKey,
+        tokenASymbol,
+        tokenBSymbol,
+        tokenAAmount,
+        tokenBAmount,
+      );
+    });
+
     describe('USDC -> USDT', () => {
       const tokenASymbol: string = 'USDC';
       const tokenBSymbol: string = 'USDT';
