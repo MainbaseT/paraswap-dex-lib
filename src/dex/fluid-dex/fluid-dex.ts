@@ -131,7 +131,8 @@ export class FluidDex extends SimpleExchange implements IDex<FluidDexData> {
     );
 
     if (!this.dexHelper.config.isSlave) {
-      void this.updateReserves();
+      // Await the first fetch so pricing is usable as soon as init returns.
+      await this.updateReserves();
 
       if (!this.reserveUpdateIntervalTask) {
         this.reserveUpdateIntervalTask = setInterval(
@@ -172,8 +173,19 @@ export class FluidDex extends SimpleExchange implements IDex<FluidDexData> {
     side: SwapSide,
     blockNumber: number,
   ): Promise<string[]> {
+    if (this.isUnsupportedWethBuy(srcToken.address, side)) return [];
+
     const pools = this.getPoolsByTokenPair(srcToken.address, destToken.address);
     return pools.map(pool => pool.id);
+  }
+
+  // Exact-out swaps send the slippage-scaled max input as msg.value and the
+  // pool refunds the unused ETH to the executor — with a WETH-paying user
+  // there is no path returning that raw-ETH refund, so the user would be
+  // silently overcharged. Keep WETH-src BUY unpriced until the executor
+  // supports rewrapping the refund.
+  private isUnsupportedWethBuy(srcToken: Address, side: SwapSide): boolean {
+    return side === SwapSide.BUY && this.dexHelper.config.isWETH(srcToken);
   }
 
   // Fluid pools hold native ETH, never WETH. Map WETH to the native address so
@@ -212,6 +224,8 @@ export class FluidDex extends SimpleExchange implements IDex<FluidDexData> {
     limitPools?: string[],
   ): Promise<null | ExchangePrices<FluidDexData>> {
     try {
+      if (this.isUnsupportedWethBuy(srcToken.address, side)) return null;
+
       const srcTokenAddress = this.normalizeTokenAddress(srcToken.address);
       const destTokenAddress = this.normalizeTokenAddress(destToken.address);
 
