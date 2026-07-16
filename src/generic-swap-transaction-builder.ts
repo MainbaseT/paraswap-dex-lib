@@ -226,47 +226,72 @@ export class GenericSwapTransactionBuilder {
               executorAddress,
             );
 
-            let dexParams: DexExchangeParam;
-            if (newDex) {
-              dexParams = await this.fetchRemoteDexParam({
-                dexKey: newDex.key,
-                srcToken,
-                destToken,
-                srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
-                destAmount,
-                recipient,
-                data: se.data,
-                side,
-                executorAddress,
-                options: getDexParamOptions,
-              });
+            const callGetDexParam = async (
+              recipientArg: Address,
+            ): Promise<DexExchangeParam> => {
+              let params: DexExchangeParam;
+              if (newDex) {
+                params = await this.fetchRemoteDexParam({
+                  dexKey: newDex.key,
+                  srcToken,
+                  destToken,
+                  srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
+                  destAmount,
+                  recipient: recipientArg,
+                  data: se.data,
+                  side,
+                  executorAddress,
+                  options: getDexParamOptions,
+                });
 
-              // The local `newDexs[*].needWrapNative` is the single source of
-              // truth: it already drove `getDexCallsParams` (and therefore
-              // `wethDeposit`/`wethWithdraw`). Keep the executor builder in
-              // lockstep so the wrap accounting and the bytecode wiring
-              // can't diverge.
-              dexParams.needWrapNative = newDex.needWrapNative;
-            } else {
-              dexParams = await dex!.getDexParam!(
-                srcToken,
-                destToken,
-                side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
-                destAmount,
-                recipient,
-                se.data,
-                side,
-                executorAddress,
-                getDexParamOptions,
-              );
-            }
+                // The local `newDexs[*].needWrapNative` is the single source of
+                // truth: it already drove `getDexCallsParams` (and therefore
+                // `wethDeposit`/`wethWithdraw`). Keep the executor builder in
+                // lockstep so the wrap accounting and the bytecode wiring
+                // can't diverge.
+                params.needWrapNative = newDex.needWrapNative;
+              } else {
+                params = await dex!.getDexParam!(
+                  srcToken,
+                  destToken,
+                  side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
+                  destAmount,
+                  recipientArg,
+                  se.data,
+                  side,
+                  executorAddress,
+                  getDexParamOptions,
+                );
+              }
 
-            if (typeof dexParams.needWrapNative === 'function') {
-              dexParams.needWrapNative = dexParams.needWrapNative(
-                priceRoute,
-                swap,
-                se,
-              );
+              if (typeof params.needWrapNative === 'function') {
+                params.needWrapNative = params.needWrapNative(
+                  priceRoute,
+                  swap,
+                  se,
+                );
+              }
+
+              return params;
+            };
+
+            let dexParams = await callGetDexParam(recipient);
+
+            // A needUnwrapNative dex on a WETH-dest hop outputs raw ETH, and
+            // the executor's wrap-after machinery expects that ETH ON the
+            // executor — but whether the dex needs the unwrap treatment is
+            // only known from the returned param, after the recipient was
+            // already chosen. If it went elsewhere, re-encode with the
+            // executor as recipient and let the standard !dexFuncHasRecipient
+            // epilogue forward the wrapped output.
+            if (
+              dexParams.needUnwrapNative &&
+              dexParams.dexFuncHasRecipient &&
+              this.dexAdapterService.dexHelper.config.isWETH(swap.destToken) &&
+              recipient.toLowerCase() !== executorAddress.toLowerCase()
+            ) {
+              dexParams = await callGetDexParam(executorAddress);
+              dexParams.dexFuncHasRecipient = false;
             }
 
             return {
