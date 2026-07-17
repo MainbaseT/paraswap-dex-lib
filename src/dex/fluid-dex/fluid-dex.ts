@@ -531,22 +531,28 @@ export class FluidDex extends SimpleExchange implements IDex<FluidDexData> {
 
     const swap0To1 =
       pool.token0.toLowerCase() === this.normalizeTokenAddress(srcToken);
+    const isWethDest = this.dexHelper.config.isWETH(destToken);
+
+    // WETH dest: the pool pays out native ETH; deliver it to the executor so
+    // its wrap-after step can pick it up, and report no recipient support so
+    // the wrapped output is forwarded like any executor-held result.
+    const swapRecipient = isWethDest ? executorAddress : recipient;
 
     if (side === SwapSide.SELL) {
-      args = [swap0To1, BigInt(srcAmount), BigInt(destAmount), recipient];
+      args = [swap0To1, BigInt(srcAmount), BigInt(destAmount), swapRecipient];
     } else {
       args = [
         swap0To1,
         (BigInt(destAmount) * 1000001n) / 1000000n, // 0.0001% increase target out amount when calling Fluid Dex as it is not 100% exact. Guarantees meeting reaching exact out amount condition
         BigInt(srcAmount),
-        recipient,
+        swapRecipient,
       ];
     }
     const swapData = this.fluidDexPoolIface.encodeFunctionData(method, args);
     return {
       needWrapNative: this.needWrapNative,
       needUnwrapNative: true,
-      dexFuncHasRecipient: true,
+      dexFuncHasRecipient: !isWethDest,
       exchangeData: swapData,
       targetExchange: pool!.address,
       returnAmountPos,
