@@ -976,11 +976,24 @@ export class GenericSwapTransactionBuilder {
     if (
       isGroupFallback &&
       dexParams.needUnwrapNative &&
+      // Only recipient-capable params need the re-encode (e.g. remote api-go
+      // params). A dex that already normalizes WETH-dest itself (FluidDex
+      // delivers on the executor and reports dexFuncHasRecipient=false) is
+      // handled by the standard false-recipient epilogue — re-encoding AND
+      // marking deliversToExecutor would append the executor->Augustus
+      // forward twice, and the second transfer reverts on an empty balance.
+      dexParams.dexFuncHasRecipient &&
       this.dexAdapterService.dexHelper.config.isWETH(swap.destToken) &&
       recipient.toLowerCase() !== executorAddress.toLowerCase()
     ) {
       dexParams = await callGetDexParam(executorAddress);
-      dexParams.deliversToExecutor = true;
+      // The re-encoded param may itself flip to false-recipient (dex-level
+      // normalization raced the flag) — mark deliversToExecutor only while
+      // the param still claims recipient delivery, so exactly one forward
+      // site fires.
+      if (dexParams.dexFuncHasRecipient) {
+        dexParams.deliversToExecutor = true;
+      }
     }
 
     // Case C marker (Executor01): group fallback redirected to the executor
