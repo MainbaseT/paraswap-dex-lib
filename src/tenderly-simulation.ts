@@ -633,13 +633,15 @@ export class TenderlySimulator {
    * Simulates the given read call with the state override applied and checks
    * that the override actually controls the returned value: the call must
    * succeed and return a non-zero value different from the baseline.
-   * An exact match with `writtenValue` is not required — tokens with derived
-   * balances (e.g. stETH shares, aToken scaled balances) return a scaled value
+   * With `allowScaled` an exact match with `writtenValue` is not required —
+   * tokens with derived balances (e.g. stETH shares, aToken scaled balances)
+   * return a scaled value. Without it, only an exact match passes
    */
   private async simulateAndCheckOutput(
     request: SimulateTransactionRequest,
     writtenValue: bigint,
     baselineValue: bigint,
+    allowScaled: boolean,
   ): Promise<boolean> {
     try {
       const { transaction, simulation } = await this.simulateTransaction(
@@ -660,6 +662,10 @@ export class TenderlySimulator {
       }
 
       if (decoded !== writtenValue) {
+        if (!allowScaled) {
+          return false;
+        }
+
         console.warn(
           `Slot override verification for token ${request.to}: written value ${writtenValue} but call returned ${decoded} (derived/scaled value), accepting slot`,
         );
@@ -714,6 +720,7 @@ export class TenderlySimulator {
       },
       amount,
       baselineValue,
+      true, // balances can be derived from the stored value (stETH, aTokens)
     );
   }
 
@@ -762,6 +769,7 @@ export class TenderlySimulator {
       },
       amount,
       baselineValue,
+      false, // allowances are stored raw, require an exact match
     );
   }
 
