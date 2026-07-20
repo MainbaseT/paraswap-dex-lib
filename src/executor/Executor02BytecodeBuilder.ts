@@ -696,6 +696,7 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       unwrapped: false,
       sentNative: false,
     };
+    const fallbackWrapMap: { [key: string]: boolean } = {};
     let fallbackBlock = this.buildSingleSwapExchangeCallData(
       priceRoute,
       routeIndex,
@@ -703,7 +704,7 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       swapExchangeIndex,
       fallbackExchangeParams,
       fallbackFlags,
-      {},
+      fallbackWrapMap,
       allowToAddWrap,
       prevBranchWasWrapped,
       {},
@@ -750,6 +751,42 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
           fallbackBlock,
         ]);
       }
+    }
+
+    // Raw-native primary + wrap-needing fallback on a native-src hop: the
+    // executor holds the raw slice (the primary would have sent it as value),
+    // and no wrap exists anywhere on the primary path. The fallback unit can
+    // wrongly skip its own deposit here: root-wrap detection runs on the
+    // SUBSTITUTED params, where the wrap-needing fallback can make every
+    // first-swap dex look wrap-needing (doesRouteNeedsRootWrapEth) even
+    // though the real route emitted no root wrap. If the unit didn't wrap,
+    // prepend the approve+deposit (amount = the threaded slice; rolls back
+    // with the block).
+    if (
+      isETHAddress(swap.srcToken) &&
+      !exchangeParams[exchangeParamIndex].needWrapNative &&
+      Boolean(fallbackParam.needWrapNative) &&
+      !!maybeWethCallData?.deposit &&
+      !fallbackWrapMap[`${routeIndex}_${swapIndex}_${swapExchangeIndex}`]
+    ) {
+      const approveCallData =
+        fallbackParam.approveData && !fallbackParam.skipApproval
+          ? this.buildApproveCallData(
+              fallbackParam.approveData.target,
+              fallbackParam.approveData.token,
+              fallbackFlags.approves[exchangeParamIndex],
+              fallbackParam.permit2Approval,
+            )
+          : '0x';
+      fallbackBlock = hexConcat([
+        approveCallData,
+        this.buildWrapEthCallData(
+          this.getWETHAddress(fallbackParam),
+          this.erc20Interface.encodeFunctionData('deposit'),
+          Flag.SEND_ETH_EQUAL_TO_FROM_AMOUNT_DONT_CHECK_BALANCE_AFTER_SWAP, // 9
+        ),
+        fallbackBlock,
+      ]);
     }
 
     // Normalize the fallback block's OUTPUT on an ETH-dest final hop. The
