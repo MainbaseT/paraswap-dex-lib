@@ -111,6 +111,18 @@ describe('Tenderly', () => {
       // assert
       expect(foundSlot.slot).toEqual(expectedSlot);
     });
+
+    it('should find Base SOL (Solady) `balanceOf` storage slot seed', async () => {
+      const foundSlot = await tenderly.findTokenBalanceOfSlot(
+        8453,
+        '0x311935cd80b76769bf2ecc9d8ab7635b2139cf82', // Solana (SOL) on Base, Solady ERC20 behind a beacon proxy
+      );
+      // assert
+      expect(foundSlot.slot).toEqual(
+        TenderlySimulator.SOLADY_BALANCE_SLOT_SEED,
+      );
+      expect(foundSlot.isSolady).toEqual(true);
+    });
   });
 
   describe('findTokenAllowanceSlot', () => {
@@ -160,6 +172,18 @@ describe('Tenderly', () => {
       expect(foundSlot.stateProxy).toEqual(
         '0x5b1b5fea1b99d83ad479df0c222f0492385381dd',
       );
+    });
+
+    it('should find Base SOL (Solady) `allowance` storage slot seed', async () => {
+      const foundSlot = await tenderly.findTokenAllowanceSlot(
+        8453,
+        '0x311935cd80b76769bf2ecc9d8ab7635b2139cf82', // Solana (SOL) on Base, Solady ERC20 behind a beacon proxy
+      );
+      // assert
+      expect(foundSlot.slot).toEqual(
+        TenderlySimulator.SOLADY_ALLOWANCE_SLOT_SEED,
+      );
+      expect(foundSlot.isSolady).toEqual(true);
     });
   });
 });

@@ -29,6 +29,9 @@ interface TokenStorageSlots {
   balanceSlot: string;
   allowanceSlot: string;
   isVyper?: boolean;
+  // Solady ERC20 layout: `balanceSlot`/`allowanceSlot` hold the Solady slot
+  // seeds instead of mapping slots
+  isSolady?: boolean;
   stateProxy?: string;
   additionalOverrides?: StateOverride;
 }
@@ -36,6 +39,7 @@ interface TokenStorageSlots {
 interface FoundSlot {
   slot: string;
   isVyper?: boolean;
+  isSolady?: boolean;
   stateProxy?: string;
 }
 
@@ -257,6 +261,11 @@ export class TenderlySimulator {
   // distinctive value written into a candidate slot during verification,
   // unlikely to collide with any pre-existing balance/allowance
   static readonly SLOT_VERIFICATION_AMOUNT = 123456789012345678901234567n;
+  // Solady ERC20 doesn't use Solidity mappings — balances/allowances live at
+  // slots derived from these fixed library constants
+  // https://github.com/Vectorized/solady/blob/main/src/tokens/ERC20.sol
+  static readonly SOLADY_BALANCE_SLOT_SEED = '0x87a211a2';
+  static readonly SOLADY_ALLOWANCE_SLOT_SEED = '0x7f5e9f20';
 
   // singleton
   private static instance: TenderlySimulator;
@@ -415,15 +424,20 @@ export class TenderlySimulator {
 
   /**
    *
-   * @param balanceOfSlot storage slot of `balanceOf` mapping
+   * @param balanceOfSlot storage slot of `balanceOf` mapping (Solady slot seed if `isSolady`)
    * @param owner account's address
    * @param isVyper `true` if contract is written in Vyper
+   * @param isSolady `true` if contract uses Solady ERC20 storage layout
    */
   calculateAddressBalanceSlot(
     balanceOfSlot: string,
     owner: string,
     isVyper = false,
+    isSolady = false,
   ) {
+    if (isSolady) {
+      return this.calculateSoladyAddressBalanceSlot(balanceOfSlot, owner);
+    }
     return isVyper
       ? this.calculateVyperAddressBalanceSlot(balanceOfSlot, owner)
       : this.calculateSolidityAddressBalanceSlot(balanceOfSlot, owner);
@@ -452,18 +466,42 @@ export class TenderlySimulator {
   }
 
   /**
+   * Solady ERC20 stores balances at `keccak256(owner ++ seed)` where the seed
+   * is the 12-byte-padded `_BALANCE_SLOT_SEED` library constant
+   * @param balanceSlotSeed Solady balance slot seed
+   * @param owner account's address
+   */
+  calculateSoladyAddressBalanceSlot(balanceSlotSeed: string, owner: string) {
+    return ethers.utils.keccak256(
+      ethers.utils.concat([
+        ethers.utils.hexZeroPad(owner, 20),
+        ethers.utils.hexZeroPad(balanceSlotSeed, 12),
+      ]),
+    );
+  }
+
+  /**
    *
-   * @param allowanceSlot storage slot of `allowance` mapping
+   * @param allowanceSlot storage slot of `allowance` mapping (Solady slot seed if `isSolady`)
    * @param owner account's address
    * @param spender spender's address
    * @param isVyper `true` if contract is written in Vyper
+   * @param isSolady `true` if contract uses Solady ERC20 storage layout
    */
   calculateAddressAllowanceSlot(
     allowanceSlot: string,
     owner: string,
     spender: string,
     isVyper = false,
+    isSolady = false,
   ) {
+    if (isSolady) {
+      return this.calculateSoladyAddressAllowanceSlot(
+        allowanceSlot,
+        owner,
+        spender,
+      );
+    }
     return isVyper
       ? this.calculateVyperAddressAllowanceSlot(allowanceSlot, owner, spender)
       : this.calculateSolidityAddressAllowanceSlot(
@@ -516,6 +554,27 @@ export class TenderlySimulator {
 
     return ethers.utils.keccak256(
       ethers.utils.concat([slotHash, ethers.utils.hexZeroPad(spender, 32)]),
+    );
+  }
+
+  /**
+   * Solady ERC20 stores allowances at `keccak256(owner ++ seed ++ spender)`
+   * where the seed is the 12-byte-padded `_ALLOWANCE_SLOT_SEED` library constant
+   * @param allowanceSlotSeed Solady allowance slot seed
+   * @param owner account's address
+   * @param spender spender's address
+   */
+  calculateSoladyAddressAllowanceSlot(
+    allowanceSlotSeed: string,
+    owner: string,
+    spender: string,
+  ) {
+    return ethers.utils.keccak256(
+      ethers.utils.concat([
+        ethers.utils.hexZeroPad(owner, 20),
+        ethers.utils.hexZeroPad(allowanceSlotSeed, 12),
+        ethers.utils.hexZeroPad(spender, 20),
+      ]),
     );
   }
 
@@ -633,6 +692,7 @@ export class TenderlySimulator {
       foundSlot.slot,
       owner,
       foundSlot.isVyper,
+      foundSlot.isSolady,
     );
 
     const address = foundSlot.stateProxy ?? token;
@@ -680,6 +740,7 @@ export class TenderlySimulator {
       owner,
       spender,
       foundSlot.isVyper,
+      foundSlot.isSolady,
     );
 
     const address = foundSlot.stateProxy ?? token;
@@ -752,6 +813,44 @@ export class TenderlySimulator {
         parentCallType: call.parentCall ? call.parentCall.call_type : null,
       }))
       .filter(({ slot }) => !!slot);
+
+    // try Solady layout: balance slot is derived from a fixed seed, not a mapping
+    const soladyBalanceOfSlot = this.calculateSoladyAddressBalanceSlot(
+      TenderlySimulator.SOLADY_BALANCE_SLOT_SEED,
+      account,
+    );
+    const foundSoladySlot = readSlots.find(
+      ({ slot }) => slot === soladyBalanceOfSlot,
+    );
+    if (foundSoladySlot) {
+      const candidate: FoundSlot =
+        foundSoladySlot.address !== token.toLowerCase() &&
+        foundSoladySlot.parentCallType !== 'DELEGATECALL'
+          ? {
+              slot: TenderlySimulator.SOLADY_BALANCE_SLOT_SEED,
+              isSolady: true,
+              stateProxy: foundSoladySlot.address,
+            }
+          : {
+              slot: TenderlySimulator.SOLADY_BALANCE_SLOT_SEED,
+              isSolady: true,
+            };
+
+      if (
+        await this.verifyTokenBalanceSlot(
+          chainId,
+          token,
+          candidate,
+          baselineValue,
+        )
+      ) {
+        return candidate;
+      }
+
+      console.warn(
+        `Candidate 'balanceOf' slot seed (solady) for token ${token} on chain ${chainId} failed verification, continuing search`,
+      );
+    }
 
     const startingPoints = [
       // regular contract
@@ -891,6 +990,45 @@ export class TenderlySimulator {
         parentCallType: call.parentCall ? call.parentCall.call_type : null,
       }))
       .filter(({ slot }) => !!slot);
+
+    // try Solady layout: allowance slot is derived from a fixed seed, not a mapping
+    const soladyAllowanceSlot = this.calculateSoladyAddressAllowanceSlot(
+      TenderlySimulator.SOLADY_ALLOWANCE_SLOT_SEED,
+      account,
+      spender,
+    );
+    const foundSoladySlot = readSlots.find(
+      ({ slot }) => slot === soladyAllowanceSlot,
+    );
+    if (foundSoladySlot) {
+      const candidate: FoundSlot =
+        foundSoladySlot.address !== token.toLowerCase() &&
+        foundSoladySlot.parentCallType !== 'DELEGATECALL'
+          ? {
+              slot: TenderlySimulator.SOLADY_ALLOWANCE_SLOT_SEED,
+              isSolady: true,
+              stateProxy: foundSoladySlot.address,
+            }
+          : {
+              slot: TenderlySimulator.SOLADY_ALLOWANCE_SLOT_SEED,
+              isSolady: true,
+            };
+
+      if (
+        await this.verifyTokenAllowanceSlot(
+          chainId,
+          token,
+          candidate,
+          baselineValue,
+        )
+      ) {
+        return candidate;
+      }
+
+      console.warn(
+        `Candidate 'allowance' slot seed (solady) for token ${token} on chain ${chainId} failed verification, continuing search`,
+      );
+    }
 
     const startingPoints = [
       // regular contract
@@ -1032,6 +1170,7 @@ export class TenderlySimulator {
       balanceSlot: balanceSlot.slot,
       allowanceSlot: allowanceSlot.slot,
       isVyper: balanceSlot.isVyper,
+      isSolady: balanceSlot.isSolady,
       stateProxy: balanceSlot.stateProxy,
     };
 
@@ -1079,6 +1218,7 @@ export class TenderlySimulator {
       tokenSlots.balanceSlot,
       account,
       tokenSlots.isVyper,
+      tokenSlots.isSolady,
     );
     // add the balance override
     const address = tokenSlots.stateProxy ? tokenSlots.stateProxy : token;
@@ -1117,6 +1257,7 @@ export class TenderlySimulator {
       account,
       spender,
       tokenSlots.isVyper,
+      tokenSlots.isSolady,
     );
     // add the allowance override
     const address = tokenSlots.stateProxy ? tokenSlots.stateProxy : token;
