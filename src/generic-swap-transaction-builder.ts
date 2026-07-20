@@ -204,17 +204,11 @@ export class GenericSwapTransactionBuilder {
               getDexParamOptions,
             );
 
-            // Revertable fallback alternative attached during pricing (api).
-            // Build it the same way as the primary so its setup (approve/wrap)
-            // is encoded inside the group's fallback branch.
-            //
-            // Executor01 shapes its route-level executor->Augustus forward off
-            // the PRIMARY's dexFuncHasRecipient (buildByteCode). When that
-            // primary keeps its output on the executor (=false), the fallback
-            // must end there too — so it is built with the executor as its
-            // recipient (and flagged deliversToExecutor for the balance check).
-            // Executor02 appends its forward per-branch from each branch's own
-            // param, so it needs no recipient forcing.
+            // Revertable-fallback alternative attached at pricing, built the
+            // same way as the primary. Executor01 encodes a single route-level
+            // executor->Augustus forward shaped by the primary, so a fallback
+            // behind a false-recipient primary must also keep its output on
+            // the executor (Executor02 forwards per-branch and needs nothing).
             const fallback = se.fallback
               ? await this.buildSingleExchangeParam(
                   priceRoute,
@@ -236,9 +230,6 @@ export class GenericSwapTransactionBuilder {
             return {
               ...primary,
               fallback,
-              // Fully-built sub-param (with its own approval, checked
-              // independently of the primary's batch so dedup never
-              // suppresses it) for the revertable-group encoding.
               fallbackParam: fallback
                 ? await this.buildFallbackBuildParam(
                     bytecodeBuilder,
@@ -259,9 +250,8 @@ export class GenericSwapTransactionBuilder {
         destAmountWethToWithdraw: bigint;
       }>(
         (acc, se) => {
-          // Count the fallback's wrap/unwrap too so the WETH deposit/withdraw
-          // template exists for whichever branch runs (only one executes at
-          // runtime; the amount is inserted dynamically per branch).
+          // Fallback wrap/unwrap counts too: the WETH deposit/withdraw
+          // template must exist for whichever branch runs.
           acc.srcAmountWethToDeposit +=
             BigInt(se.wethDeposit) + (se.fallback?.wethDeposit ?? 0n);
           acc.destAmountWethToWithdraw +=
@@ -832,12 +822,9 @@ export class GenericSwapTransactionBuilder {
         needToWithdrawAfterSwap ||
         !isLastSwap ||
         priceRoute.side === SwapSide.BUY ||
-        // A revertable group's fallback must leave its output ON the executor
-        // on ETH-dest hops (direct delivery to Augustus can't be reconciled
-        // with the try branch's end state — the post-group machinery would
-        // double-send the threaded amount), and on every hop when the primary
-        // keeps its output on the executor (the route-level executor->Augustus
-        // forward expects the funds there).
+        // A group fallback must end where the shared post-group bytecode
+        // expects the funds: on the executor for ETH-dest hops, and on every
+        // hop when the primary keeps its output there.
         (groupFallback &&
           (isETHAddress(swap.destToken) ||
             groupFallback.primaryDeliversToExecutor))
@@ -862,11 +849,7 @@ export class GenericSwapTransactionBuilder {
     minMaxAmount: string,
     bytecodeBuilder: ExecutorBytecodeBuilder,
     getDexParamOptions?: GetDexParamOptions,
-    // Present iff this builds a revertable group's FALLBACK branch.
-    // `primaryDeliversToExecutor` marks an Executor01 group whose primary
-    // keeps its output on the executor (dexFuncHasRecipient=false): the
-    // fallback must end there too, so the route-level executor->Augustus
-    // forward finds the funds.
+    // Present iff this builds a revertable group's fallback branch.
     groupFallback?: { primaryDeliversToExecutor: boolean },
   ): Promise<{
     dexParams: DexExchangeParamWithBooleanNeedWrapNative;
@@ -909,10 +892,9 @@ export class GenericSwapTransactionBuilder {
       groupFallback,
     );
 
-    // NOTE: a dex that outputs raw ETH on a WETH-dest hop (needUnwrapNative)
-    // must self-normalize to be group-fallback-safe: deliver on the executor
-    // and report dexFuncHasRecipient=false (see FluidDex). All current
-    // needUnwrapNative dexes do.
+    // A needUnwrapNative dex must self-normalize on WETH-dest hops to be
+    // group-fallback-safe: deliver on the executor with
+    // dexFuncHasRecipient=false (see FluidDex).
     let dexParams: DexExchangeParam;
     if (newDex) {
       dexParams = await this.fetchRemoteDexParam({
@@ -950,10 +932,9 @@ export class GenericSwapTransactionBuilder {
       dexParams.needWrapNative = dexParams.needWrapNative(priceRoute, swap, se);
     }
 
-    // Case C marker (Executor01): group fallback redirected to the executor
-    // because its primary keeps output there — the flag builders force this
-    // block's dest-balance check so the group threads the REAL fallback output
-    // to the route-level forward. Never set on primaries.
+    // The fallback was redirected onto the executor: the flag builders must
+    // balance-check its output so the route-level forward gets the real
+    // amount. Never set on primaries.
     if (groupFallback?.primaryDeliversToExecutor) {
       dexParams.deliversToExecutor = true;
     }
@@ -965,9 +946,8 @@ export class GenericSwapTransactionBuilder {
     };
   }
 
-  // Turn a fallback DexExchangeParam into a DexExchangeBuildParam, computing its
-  // own approval (a distinct spender from the primary; built independently so the
-  // primary's approval dedup never suppresses it).
+  // Turn a fallback DexExchangeParam into a DexExchangeBuildParam with its
+  // own approval, checked separately from the primaries' batch.
   private async buildFallbackBuildParam(
     bytecodeBuilder: ExecutorBytecodeBuilder,
     swap: OptimalSwap,
