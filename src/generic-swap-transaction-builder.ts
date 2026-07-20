@@ -909,78 +909,45 @@ export class GenericSwapTransactionBuilder {
       groupFallback,
     );
 
-    const callGetDexParam = async (
-      recipientArg: Address,
-    ): Promise<DexExchangeParam> => {
-      let params: DexExchangeParam;
-      if (newDex) {
-        params = await this.fetchRemoteDexParam({
-          dexKey: newDex.key,
-          srcToken,
-          destToken,
-          srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
-          destAmount,
-          recipient: recipientArg,
-          data: se.data,
-          side,
-          executorAddress,
-          options: getDexParamOptions,
-        });
+    // NOTE: a dex that outputs raw ETH on a WETH-dest hop (needUnwrapNative)
+    // must self-normalize to be group-fallback-safe: deliver on the executor
+    // and report dexFuncHasRecipient=false (see FluidDex). All current
+    // needUnwrapNative dexes do.
+    let dexParams: DexExchangeParam;
+    if (newDex) {
+      dexParams = await this.fetchRemoteDexParam({
+        dexKey: newDex.key,
+        srcToken,
+        destToken,
+        srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
+        destAmount,
+        recipient,
+        data: se.data,
+        side,
+        executorAddress,
+        options: getDexParamOptions,
+      });
 
-        // The local `newDexs[*].needWrapNative` is the single source of truth:
-        // it already drove `getDexCallsParams` (and therefore `wethDeposit`/
-        // `wethWithdraw`). Keep the executor builder in lockstep so the wrap
-        // accounting and the bytecode wiring can't diverge.
-        params.needWrapNative = newDex.needWrapNative;
-      } else {
-        params = await dex!.getDexParam!(
-          srcToken,
-          destToken,
-          side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
-          destAmount,
-          recipientArg,
-          se.data,
-          side,
-          executorAddress,
-          getDexParamOptions,
-        );
-      }
-      if (typeof params.needWrapNative === 'function') {
-        params.needWrapNative = params.needWrapNative(priceRoute, swap, se);
-      }
-      return params;
-    };
-
-    let dexParams = await callGetDexParam(recipient);
-
-    // A needUnwrapNative fallback on a WETH-dest hop outputs raw ETH, and the
-    // executor's wrap-after machinery expects that ETH ON the executor — but
-    // whether the dex needs the unwrap treatment is only known from the
-    // returned param, after the recipient was already chosen. If it went to
-    // Augustus, re-encode with the executor as recipient; the group then ends
-    // the branch with an explicit WETH forward (buildRevertableGroup /
-    // wrapInRevertableGroup) so both branches still finish in the same state.
-    if (
-      groupFallback &&
-      dexParams.needUnwrapNative &&
-      // Only recipient-capable params need the re-encode (e.g. remote api-go
-      // params). A dex that already normalizes WETH-dest itself (FluidDex
-      // delivers on the executor and reports dexFuncHasRecipient=false) is
-      // handled by the standard false-recipient epilogue — re-encoding AND
-      // marking deliversToExecutor would append the executor->Augustus
-      // forward twice, and the second transfer reverts on an empty balance.
-      dexParams.dexFuncHasRecipient &&
-      this.dexAdapterService.dexHelper.config.isWETH(swap.destToken) &&
-      recipient.toLowerCase() !== executorAddress.toLowerCase()
-    ) {
-      dexParams = await callGetDexParam(executorAddress);
-      // The re-encoded param may itself flip to false-recipient (dex-level
-      // normalization raced the flag) — mark deliversToExecutor only while
-      // the param still claims recipient delivery, so exactly one forward
-      // site fires.
-      if (dexParams.dexFuncHasRecipient) {
-        dexParams.deliversToExecutor = true;
-      }
+      // The local `newDexs[*].needWrapNative` is the single source of truth:
+      // it already drove `getDexCallsParams` (and therefore `wethDeposit`/
+      // `wethWithdraw`). Keep the executor builder in lockstep so the wrap
+      // accounting and the bytecode wiring can't diverge.
+      dexParams.needWrapNative = newDex.needWrapNative;
+    } else {
+      dexParams = await dex!.getDexParam!(
+        srcToken,
+        destToken,
+        side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
+        destAmount,
+        recipient,
+        se.data,
+        side,
+        executorAddress,
+        getDexParamOptions,
+      );
+    }
+    if (typeof dexParams.needWrapNative === 'function') {
+      dexParams.needWrapNative = dexParams.needWrapNative(priceRoute, swap, se);
     }
 
     // Case C marker (Executor01): group fallback redirected to the executor
