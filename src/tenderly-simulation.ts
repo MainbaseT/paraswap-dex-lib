@@ -33,6 +33,12 @@ interface TokenStorageSlots {
   additionalOverrides?: StateOverride;
 }
 
+interface FoundSlot {
+  slot: string;
+  isVyper?: boolean;
+  stateProxy?: string;
+}
+
 interface SimulateTransactionRequest {
   from: string | null;
   to: string | null;
@@ -248,6 +254,9 @@ export class TenderlySimulator {
   static readonly DEFAULT_OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   static readonly DEFAULT_SPENDER =
     '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+  // distinctive value written into a candidate slot during verification,
+  // unlikely to collide with any pre-existing balance/allowance
+  static readonly SLOT_VERIFICATION_AMOUNT = 123456789012345678901234567n;
 
   // singleton
   private static instance: TenderlySimulator;
@@ -545,16 +554,167 @@ export class TenderlySimulator {
     };
   }
 
+  private decodeUintOutput(output: string | undefined): bigint | null {
+    if (!output || output === '0x') {
+      return null;
+    }
+
+    try {
+      const [decoded] = ethers.utils.defaultAbiCoder.decode(
+        ['uint256'],
+        output,
+      );
+      return decoded.toBigInt();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Simulates the given read call with the state override applied and checks
+   * that the override actually controls the returned value: the call must
+   * succeed and return a non-zero value different from the baseline.
+   * An exact match with `writtenValue` is not required — tokens with derived
+   * balances (e.g. stETH shares, aToken scaled balances) return a scaled value
+   */
+  private async simulateAndCheckOutput(
+    request: SimulateTransactionRequest,
+    writtenValue: bigint,
+    baselineValue: bigint,
+  ): Promise<boolean> {
+    try {
+      const { transaction, simulation } = await this.simulateTransaction(
+        request,
+        true, // force Tenderly simulation API
+      );
+
+      if (!simulation.status) {
+        return false;
+      }
+
+      const decoded = this.decodeUintOutput(
+        transaction.transaction_info.call_trace.output,
+      );
+
+      if (decoded === null || decoded === 0n || decoded === baselineValue) {
+        return false;
+      }
+
+      if (decoded !== writtenValue) {
+        console.warn(
+          `Slot override verification for token ${request.to}: written value ${writtenValue} but call returned ${decoded} (derived/scaled value), accepting slot`,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Verifies a candidate `balanceOf` mapping slot by overriding the derived
+   * slot with a distinctive value and checking that `balanceOf` reflects it
+   * @param chainId token chain id
+   * @param token token address
+   * @param foundSlot candidate slot to verify
+   * @param baselineValue `balanceOf` result without the override applied
+   */
+  async verifyTokenBalanceSlot(
+    chainId: number,
+    token: string,
+    foundSlot: FoundSlot,
+    baselineValue = 0n,
+  ): Promise<boolean> {
+    const owner = TenderlySimulator.DEFAULT_OWNER;
+    const amount = TenderlySimulator.SLOT_VERIFICATION_AMOUNT;
+
+    const slotToOverride = this.calculateAddressBalanceSlot(
+      foundSlot.slot,
+      owner,
+      foundSlot.isVyper,
+    );
+
+    const address = foundSlot.stateProxy ?? token;
+    const stateOverride: StateOverride = {
+      [address]: {
+        storage: {
+          [slotToOverride]: ethers.utils.defaultAbiCoder.encode(
+            ['uint'],
+            [amount],
+          ),
+        },
+      },
+    };
+
+    return this.simulateAndCheckOutput(
+      {
+        ...this.buildBalanceOfSimulationRequest(chainId, token, owner),
+        stateOverride,
+      },
+      amount,
+      baselineValue,
+    );
+  }
+
+  /**
+   * Verifies a candidate `allowance` mapping slot by overriding the derived
+   * slot with a distinctive value and checking that `allowance` reflects it
+   * @param chainId token chain id
+   * @param token token address
+   * @param foundSlot candidate slot to verify
+   * @param baselineValue `allowance` result without the override applied
+   */
+  async verifyTokenAllowanceSlot(
+    chainId: number,
+    token: string,
+    foundSlot: FoundSlot,
+    baselineValue = 0n,
+  ): Promise<boolean> {
+    const owner = TenderlySimulator.DEFAULT_OWNER;
+    const spender = TenderlySimulator.DEFAULT_SPENDER;
+    const amount = TenderlySimulator.SLOT_VERIFICATION_AMOUNT;
+
+    const slotToOverride = this.calculateAddressAllowanceSlot(
+      foundSlot.slot,
+      owner,
+      spender,
+      foundSlot.isVyper,
+    );
+
+    const address = foundSlot.stateProxy ?? token;
+    const stateOverride: StateOverride = {
+      [address]: {
+        storage: {
+          [slotToOverride]: ethers.utils.defaultAbiCoder.encode(
+            ['uint'],
+            [amount],
+          ),
+        },
+      },
+    };
+
+    return this.simulateAndCheckOutput(
+      {
+        ...this.buildAllowanceSimulationRequest(chainId, token, owner, spender),
+        stateOverride,
+      },
+      amount,
+      baselineValue,
+    );
+  }
+
   /**
    * Finds the slot of the `balanceOf` mapping in given token contract's storage.
-   * Supports `Solidity` and `Vyper` contracts
+   * Supports `Solidity` and `Vyper` contracts.
+   * Found slots are verified with an additional simulation before being returned
    * @param chainId token chain id
    * @param token token address
    */
   async findTokenBalanceOfSlot(
     chainId: number,
     token: string,
-  ): Promise<{ slot: string; isVyper?: boolean; stateProxy?: string }> {
+  ): Promise<FoundSlot> {
     const account = TenderlySimulator.DEFAULT_OWNER;
 
     const balanceOfSimulationRequest = this.buildBalanceOfSimulationRequest(
@@ -579,6 +739,9 @@ export class TenderlySimulator {
     }
 
     const callTrace = simulationDetails.transaction.transaction_info.call_trace;
+
+    // `balanceOf` result without any overrides, used as verification baseline
+    const baselineValue = this.decodeUintOutput(callTrace.output) ?? 0n;
 
     const sloadCalls = this.getSLOADCalls(callTrace);
     // token's storage slots that were read during the `balanceOf` call
@@ -614,10 +777,26 @@ export class TenderlySimulator {
           ({ slot }) => slot === solitidyBalanceOfSlot,
         );
         if (foundSoliditySlot) {
-          return foundSoliditySlot.address !== token.toLowerCase() &&
+          const candidate: FoundSlot =
+            foundSoliditySlot.address !== token.toLowerCase() &&
             foundSoliditySlot.parentCallType !== 'DELEGATECALL'
-            ? { slot: candidateSlot, stateProxy: foundSoliditySlot.address }
-            : { slot: candidateSlot };
+              ? { slot: candidateSlot, stateProxy: foundSoliditySlot.address }
+              : { slot: candidateSlot };
+
+          if (
+            await this.verifyTokenBalanceSlot(
+              chainId,
+              token,
+              candidate,
+              baselineValue,
+            )
+          ) {
+            return candidate;
+          }
+
+          console.warn(
+            `Candidate 'balanceOf' slot ${candidateSlot} for token ${token} on chain ${chainId} failed verification, continuing search`,
+          );
         }
         // try vyper slot
         const vyperBalanceOfSlot = this.calculateVyperAddressBalanceSlot(
@@ -629,33 +808,50 @@ export class TenderlySimulator {
         );
 
         if (foundVyperSlot) {
-          return foundVyperSlot.address === token.toLowerCase() &&
+          const candidate: FoundSlot =
+            foundVyperSlot.address !== token.toLowerCase() &&
             foundVyperSlot.parentCallType !== 'DELEGATECALL'
-            ? {
-                slot: candidateSlot,
-                isVyper: true,
-                stateProxy: foundVyperSlot.address,
-              }
-            : { slot: candidateSlot, isVyper: true };
+              ? {
+                  slot: candidateSlot,
+                  isVyper: true,
+                  stateProxy: foundVyperSlot.address,
+                }
+              : { slot: candidateSlot, isVyper: true };
+
+          if (
+            await this.verifyTokenBalanceSlot(
+              chainId,
+              token,
+              candidate,
+              baselineValue,
+            )
+          ) {
+            return candidate;
+          }
+
+          console.warn(
+            `Candidate 'balanceOf' slot ${candidateSlot} (vyper) for token ${token} on chain ${chainId} failed verification, continuing search`,
+          );
         }
       }
     }
 
     throw new Error(
-      `Could not find a 'balanceOf' mapping slot for token ${token} on chain ${chainId}`,
+      `Could not find a verified 'balanceOf' mapping slot for token ${token} on chain ${chainId}`,
     );
   }
 
   /**
-   * Finds the slot of the `allowance` mapping in given token contract's storage
-   * Supports `Solidity` and `Vyper` contracts
+   * Finds the slot of the `allowance` mapping in given token contract's storage.
+   * Supports `Solidity` and `Vyper` contracts.
+   * Found slots are verified with an additional simulation before being returned
    * @param chainId token chain id
    * @param token token address
    */
   async findTokenAllowanceSlot(
     chainId: number,
     token: string,
-  ): Promise<{ slot: string; isVyper?: boolean; stateProxy?: string }> {
+  ): Promise<FoundSlot> {
     const account = TenderlySimulator.DEFAULT_OWNER;
     const spender = TenderlySimulator.DEFAULT_SPENDER;
 
@@ -683,7 +879,8 @@ export class TenderlySimulator {
 
     const callTrace = simulationDetails.transaction.transaction_info.call_trace;
 
-    // console.log(callTrace);
+    // `allowance` result without any overrides, used as verification baseline
+    const baselineValue = this.decodeUintOutput(callTrace.output) ?? 0n;
 
     const sloadCalls = this.getSLOADCalls(callTrace);
     // token's storage slots that were read during the `allowance` call
@@ -694,8 +891,6 @@ export class TenderlySimulator {
         parentCallType: call.parentCall ? call.parentCall.call_type : null,
       }))
       .filter(({ slot }) => !!slot);
-
-    console.log(readSlots);
 
     const startingPoints = [
       // regular contract
@@ -725,15 +920,31 @@ export class TenderlySimulator {
         );
 
         if (foundSoliditySlot) {
-          return token.toLowerCase() !== foundSoliditySlot.address &&
+          const candidate: FoundSlot =
+            token.toLowerCase() !== foundSoliditySlot.address &&
             foundSoliditySlot.parentCallType !== 'DELEGATECALL'
-            ? {
-                slot: candidateSlot,
-                stateProxy: foundSoliditySlot.address,
-              }
-            : {
-                slot: candidateSlot,
-              };
+              ? {
+                  slot: candidateSlot,
+                  stateProxy: foundSoliditySlot.address,
+                }
+              : {
+                  slot: candidateSlot,
+                };
+
+          if (
+            await this.verifyTokenAllowanceSlot(
+              chainId,
+              token,
+              candidate,
+              baselineValue,
+            )
+          ) {
+            return candidate;
+          }
+
+          console.warn(
+            `Candidate 'allowance' slot ${candidateSlot} for token ${token} on chain ${chainId} failed verification, continuing search`,
+          );
         }
 
         // try vyper
@@ -748,21 +959,39 @@ export class TenderlySimulator {
         );
 
         if (foundVyperSlot) {
-          return token.toLowerCase() !== foundVyperSlot.address &&
+          const candidate: FoundSlot =
+            token.toLowerCase() !== foundVyperSlot.address &&
             foundVyperSlot.parentCallType !== 'DELEGATECALL'
-            ? {
-                slot: candidateSlot,
-                stateProxy: foundVyperSlot.address,
-              }
-            : {
-                slot: candidateSlot,
-              };
+              ? {
+                  slot: candidateSlot,
+                  isVyper: true,
+                  stateProxy: foundVyperSlot.address,
+                }
+              : {
+                  slot: candidateSlot,
+                  isVyper: true,
+                };
+
+          if (
+            await this.verifyTokenAllowanceSlot(
+              chainId,
+              token,
+              candidate,
+              baselineValue,
+            )
+          ) {
+            return candidate;
+          }
+
+          console.warn(
+            `Candidate 'allowance' slot ${candidateSlot} (vyper) for token ${token} on chain ${chainId} failed verification, continuing search`,
+          );
         }
       }
     }
 
     throw new Error(
-      `Could not find a 'allowance' mapping slot for token ${token} on chain ${chainId}`,
+      `Could not find a verified 'allowance' mapping slot for token ${token} on chain ${chainId}`,
     );
   }
 
