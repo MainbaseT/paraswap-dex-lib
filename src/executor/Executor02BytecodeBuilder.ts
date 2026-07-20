@@ -836,28 +836,6 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       }
     }
 
-    // WETH-dest final hop with a deliversToExecutor fallback behind a
-    // recipient-capable primary (which shaped no forward): append the
-    // executor->Augustus forward inside the fallback block.
-    if (
-      isLastSwap &&
-      fallbackParam.deliversToExecutor &&
-      !isETHAddress(swap.destToken) &&
-      priceRoute.destToken === swap.destToken &&
-      exchangeParams[exchangeParamIndex].dexFuncHasRecipient
-    ) {
-      fallbackBlock = hexConcat([
-        fallbackBlock,
-        this.buildTransferCallData(
-          this.erc20Interface.encodeFunctionData('transfer', [
-            this.dexHelper.config.data.augustusV6Address,
-            swapExchange.destAmount,
-          ]),
-          swap.destToken,
-        ),
-      ]);
-    }
-
     // payload = [padding(28)][tryLen(4)][fallbackLen(4)][try][fallback]
     let payload = hexConcat([
       ZEROS_28_BYTES,

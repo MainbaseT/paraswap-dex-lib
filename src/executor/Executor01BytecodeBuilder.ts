@@ -454,7 +454,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       isLastSwapHop &&
       !isETHAddress(priceRoute.destToken) &&
       exchangeParams[index].dexFuncHasRecipient &&
-      (!fallbackParam.dexFuncHasRecipient || !!fallbackParam.deliversToExecutor)
+      !fallbackParam.dexFuncHasRecipient
     ) {
       const transferCallData = this.buildTransferCallData(
         this.erc20Interface.encodeFunctionData('transfer', [
