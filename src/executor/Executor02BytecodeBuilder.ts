@@ -711,7 +711,6 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       maybeWethCallData,
       false, // addMultiSwapMetadata — the path metadata wraps the group, not the block
       applyVerticalBranching,
-      true, // disableRevertableGroup — never nest
       fallbackEndState,
     );
 
@@ -909,7 +908,6 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
     maybeWethCallData?: DepositWithdrawReturn,
     addMultiSwapMetadata?: boolean,
     applyVerticalBranching?: boolean,
-    disableRevertableGroup = false,
     endStateOut?: GroupBranchEndState,
   ): string {
     const isSimpleSwap =
@@ -1217,9 +1215,10 @@ export class Executor02BytecodeBuilder extends ExecutorBytecodeBuilder<
       endStateOut.sentNative = endState.sentNative;
     }
 
+    // In a fallback-block build the substituted param carries no fallback of
+    // its own, so the recursion from wrapInRevertableGroup can't close here.
     const fallbackParam = curExchangeParam.fallbackParam;
     if (
-      !disableRevertableGroup &&
       fallbackParam &&
       // Mixed wrap-ness on a MID-ROUTE ETH-dest hop is not normalized (raw ETH
       // as an intermediate threading token is flag-7 territory the group's
