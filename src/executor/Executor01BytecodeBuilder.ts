@@ -66,7 +66,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       specialDexSupportsInsertFromAmount,
       swappedAmountNotPresentInExchangeData,
       sendEthButSupportsInsertFromAmount,
-      deliversToExecutor,
+      executorIsDestReceiver,
     } = exchangeParam;
 
     const isWETHSrc =
@@ -106,7 +106,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       !dexFuncHasRecipient ||
       // group fallback redirected to the executor — capture its real output
       // so the group threads it to the route-level forward
-      deliversToExecutor ||
+      executorIsDestReceiver ||
       (isEthDest && needUnwrap)
     ) {
       dexFlag = forcePreventInsertFromAmount
@@ -175,7 +175,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       specialDexSupportsInsertFromAmount,
       swappedAmountNotPresentInExchangeData,
       sendEthButSupportsInsertFromAmount,
-      deliversToExecutor,
+      executorIsDestReceiver,
     } = exchangeParam;
 
     const isLastSwap =
@@ -198,7 +198,7 @@ export class Executor01BytecodeBuilder extends ExecutorBytecodeBuilder<
       needWrapNative && isEthDest && maybeWethCallData?.withdraw;
 
     const forceBalanceOfCheck = isLastSwap
-      ? !dexFuncHasRecipient || needUnwrap || !!deliversToExecutor
+      ? !dexFuncHasRecipient || needUnwrap || !!executorIsDestReceiver
       : true;
 
     const needSendEth = isEthSrc && !needWrapNative;

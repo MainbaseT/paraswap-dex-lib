@@ -190,7 +190,7 @@ export type DexExchangeParam = {
   // Executor01 flag builders use it to force the last-hop dest-balance check
   // (so the group threads the fallback's real output to the route-level
   // executor->Augustus forward that the false-recipient primary shaped).
-  deliversToExecutor?: boolean;
+  executorIsDestReceiver?: boolean;
 };
 
 export type DexExchangeParamWithBooleanNeedWrapNative = DexExchangeParam & {

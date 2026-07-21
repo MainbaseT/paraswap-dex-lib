@@ -220,7 +220,7 @@ export class GenericSwapTransactionBuilder {
                   bytecodeBuilder,
                   getDexParamOptions,
                   {
-                    primaryDeliversToExecutor:
+                    executorIsDestReceiverOnGroupPrimary:
                       bytecodeBuilder.type === Executors.ONE &&
                       !primary.dexParams.dexFuncHasRecipient,
                   },
@@ -754,7 +754,7 @@ export class GenericSwapTransactionBuilder {
     executionContractAddress: string,
     // Present iff this is a revertable group's fallback branch — see
     // buildSingleExchangeParam.
-    groupFallback?: { primaryDeliversToExecutor: boolean },
+    groupFallback?: { executorIsDestReceiverOnGroupPrimary: boolean },
   ): {
     srcToken: Address;
     destToken: Address;
@@ -827,7 +827,7 @@ export class GenericSwapTransactionBuilder {
         // hop when the primary keeps its output there.
         (groupFallback &&
           (isETHAddress(swap.destToken) ||
-            groupFallback.primaryDeliversToExecutor))
+            groupFallback.executorIsDestReceiverOnGroupPrimary))
           ? executionContractAddress
           : this.dexAdapterService.dexHelper.config.data.augustusV6Address!,
       srcAmount: _srcAmount,
@@ -850,7 +850,7 @@ export class GenericSwapTransactionBuilder {
     bytecodeBuilder: ExecutorBytecodeBuilder,
     getDexParamOptions?: GetDexParamOptions,
     // Present iff this builds a revertable group's fallback branch.
-    groupFallback?: { primaryDeliversToExecutor: boolean },
+    groupFallback?: { executorIsDestReceiverOnGroupPrimary: boolean },
   ): Promise<{
     dexParams: DexExchangeParamWithBooleanNeedWrapNative;
     wethDeposit: bigint;
@@ -935,8 +935,8 @@ export class GenericSwapTransactionBuilder {
     // The fallback was redirected onto the executor: the flag builders must
     // balance-check its output so the route-level forward gets the real
     // amount. Never set on primaries.
-    if (groupFallback?.primaryDeliversToExecutor) {
-      dexParams.deliversToExecutor = true;
+    if (groupFallback?.executorIsDestReceiverOnGroupPrimary) {
+      dexParams.executorIsDestReceiver = true;
     }
 
     return {
