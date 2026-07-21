@@ -626,6 +626,7 @@ export class Native
       data: { quote: undefined },
       poolIdentifiers: [this.serializePoolIdentifier(entry)],
       poolAddresses: [this.routerAddress],
+      targetExchange: this.routerAddress,
       gasCost: NATIVE_GAS_COST,
       prices: priceResults,
       unit: this.toBigInt(unitQuote, destToken.decimals),

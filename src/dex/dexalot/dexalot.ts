@@ -537,6 +537,7 @@ export class Dexalot
           exchange: this.dexKey,
           gasCost: DEXALOT_GAS_COST,
           poolAddresses: [this.dexalotRouterAddress],
+          targetExchange: this.dexalotRouterAddress,
         },
       ];
     } catch (e: unknown) {

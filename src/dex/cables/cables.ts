@@ -589,6 +589,7 @@ export class Cables
           exchange: this.dexKey,
           gasCost: CABLES_GAS_COST,
           poolAddresses: [this.mainnetRFQAddress],
+          targetExchange: this.mainnetRFQAddress,
           poolIdentifiers: pools,
           data: {},
         },
