@@ -20,3 +20,6 @@ allowBuilds:
   web3: true
   web3-bzz: true
   web3-shh: true
+
+minimumReleaseAgeExclude:
+  - '@paraswap/core'

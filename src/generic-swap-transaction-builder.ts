@@ -35,6 +35,7 @@ import { Weth } from './dex/weth/weth';
 import ERC20ABI from './abi/erc20.json';
 import { ExecutorDetector } from './executor/ExecutorDetector';
 import { ExecutorBytecodeBuilder } from './executor/ExecutorBytecodeBuilder';
+import { Executors } from './executor/types';
 import { IDexTxBuilder } from './dex/idex';
 import {
   ContractMethod,
@@ -192,87 +193,50 @@ export class GenericSwapTransactionBuilder {
       priceRoute.bestRoute.flatMap((route, routeIndex) =>
         route.swaps.flatMap((swap, swapIndex) =>
           swap.swapExchanges.map(async se => {
-            const newDex = this.findNewDex(se.exchange);
-            const executorAddress = bytecodeBuilder.getAddress();
-
-            let dexNeedWrapNative: boolean;
-            let dex: IDexTxBuilder<any, any> | undefined;
-            if (newDex) {
-              dexNeedWrapNative = newDex.needWrapNative;
-            } else {
-              dex = this.dexAdapterService.getTxBuilderDexByKey(se.exchange);
-              dexNeedWrapNative =
-                typeof dex.needWrapNative === 'function'
-                  ? dex.needWrapNative(priceRoute, swap, se)
-                  : dex.needWrapNative;
-            }
-
-            const {
-              srcToken,
-              destToken,
-              srcAmount,
-              destAmount,
-              recipient,
-              wethDeposit,
-              wethWithdraw,
-            } = this.getDexCallsParams(
+            const primary = await this.buildSingleExchangeParam(
               priceRoute,
               routeIndex,
               swap,
               swapIndex,
               se,
               minMaxAmount,
-              dexNeedWrapNative,
-              executorAddress,
+              bytecodeBuilder,
+              getDexParamOptions,
             );
 
-            let dexParams: DexExchangeParam;
-            if (newDex) {
-              dexParams = await this.fetchRemoteDexParam({
-                dexKey: newDex.key,
-                srcToken,
-                destToken,
-                srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
-                destAmount,
-                recipient,
-                data: se.data,
-                side,
-                executorAddress,
-                options: getDexParamOptions,
-              });
-
-              // The local `newDexs[*].needWrapNative` is the single source of
-              // truth: it already drove `getDexCallsParams` (and therefore
-              // `wethDeposit`/`wethWithdraw`). Keep the executor builder in
-              // lockstep so the wrap accounting and the bytecode wiring
-              // can't diverge.
-              dexParams.needWrapNative = newDex.needWrapNative;
-            } else {
-              dexParams = await dex!.getDexParam!(
-                srcToken,
-                destToken,
-                side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
-                destAmount,
-                recipient,
-                se.data,
-                side,
-                executorAddress,
-                getDexParamOptions,
-              );
-            }
-
-            if (typeof dexParams.needWrapNative === 'function') {
-              dexParams.needWrapNative = dexParams.needWrapNative(
-                priceRoute,
-                swap,
-                se,
-              );
-            }
+            // Revertable-fallback alternative attached at pricing, built the
+            // same way as the primary. Executor01 encodes a single route-level
+            // executor->Augustus forward shaped by the primary, so a fallback
+            // behind a false-recipient primary must also keep its output on
+            // the executor (Executor02 forwards per-branch and needs nothing).
+            const fallback = se.fallback
+              ? await this.buildSingleExchangeParam(
+                  priceRoute,
+                  routeIndex,
+                  swap,
+                  swapIndex,
+                  se.fallback,
+                  minMaxAmount,
+                  bytecodeBuilder,
+                  getDexParamOptions,
+                  {
+                    executorIsDestReceiverOnGroupPrimary:
+                      bytecodeBuilder.type === Executors.ONE &&
+                      !primary.dexParams.dexFuncHasRecipient,
+                  },
+                )
+              : undefined;
 
             return {
-              dexParams: <DexExchangeParamWithBooleanNeedWrapNative>dexParams,
-              wethDeposit,
-              wethWithdraw,
+              ...primary,
+              fallback,
+              fallbackParam: fallback
+                ? await this.buildFallbackBuildParam(
+                    bytecodeBuilder,
+                    swap,
+                    fallback.dexParams,
+                  )
+                : undefined,
             };
           }),
         ),
@@ -280,14 +244,18 @@ export class GenericSwapTransactionBuilder {
     );
 
     const { exchangeParams, srcAmountWethToDeposit, destAmountWethToWithdraw } =
-      await rawDexParams.reduce<{
+      rawDexParams.reduce<{
         exchangeParams: DexExchangeParamWithBooleanNeedWrapNative[];
         srcAmountWethToDeposit: bigint;
         destAmountWethToWithdraw: bigint;
       }>(
         (acc, se) => {
-          acc.srcAmountWethToDeposit += BigInt(se.wethDeposit);
-          acc.destAmountWethToWithdraw += BigInt(se.wethWithdraw);
+          // Fallback wrap/unwrap counts too: the WETH deposit/withdraw
+          // template must exist for whichever branch runs.
+          acc.srcAmountWethToDeposit +=
+            BigInt(se.wethDeposit) + (se.fallback?.wethDeposit ?? 0n);
+          acc.destAmountWethToWithdraw +=
+            BigInt(se.wethWithdraw) + (se.fallback?.wethWithdraw ?? 0n);
           acc.exchangeParams.push(se.dexParams);
           return acc;
         },
@@ -312,6 +280,15 @@ export class GenericSwapTransactionBuilder {
       exchangeParams,
       maybeWethCallData,
     );
+
+    rawDexParams.forEach((se, idx) => {
+      if (se.fallbackParam) {
+        buildExchangeParams[idx] = {
+          ...buildExchangeParams[idx],
+          fallbackParam: se.fallbackParam,
+        };
+      }
+    });
 
     return bytecodeBuilder.buildByteCode(
       priceRoute,
@@ -775,6 +752,9 @@ export class GenericSwapTransactionBuilder {
     minMaxAmount: string,
     dexNeedWrapNative: boolean,
     executionContractAddress: string,
+    // Present iff this is a revertable group's fallback branch — see
+    // buildSingleExchangeParam.
+    groupFallback?: { executorIsDestReceiverOnGroupPrimary: boolean },
   ): {
     srcToken: Address;
     destToken: Address;
@@ -841,7 +821,13 @@ export class GenericSwapTransactionBuilder {
       recipient:
         needToWithdrawAfterSwap ||
         !isLastSwap ||
-        priceRoute.side === SwapSide.BUY
+        priceRoute.side === SwapSide.BUY ||
+        // A group fallback must end where the shared post-group bytecode
+        // expects the funds: on the executor for ETH-dest hops, and on every
+        // hop when the primary keeps its output there.
+        (groupFallback &&
+          (isETHAddress(swap.destToken) ||
+            groupFallback.executorIsDestReceiverOnGroupPrimary))
           ? executionContractAddress
           : this.dexAdapterService.dexHelper.config.data.augustusV6Address!,
       srcAmount: _srcAmount,
@@ -849,6 +835,156 @@ export class GenericSwapTransactionBuilder {
       wethDeposit,
       wethWithdraw,
     };
+  }
+
+  // Build the DexExchangeParam for a single swap exchange (resolving needWrapNative
+  // and the wrap/unwrap accounting). Shared by the primary swap and its revertable
+  // fallback alternative so both go through the exact same path.
+  private async buildSingleExchangeParam(
+    priceRoute: OptimalRate,
+    routeIndex: number,
+    swap: OptimalSwap,
+    swapIndex: number,
+    se: OptimalSwapExchange<any>,
+    minMaxAmount: string,
+    bytecodeBuilder: ExecutorBytecodeBuilder,
+    getDexParamOptions?: GetDexParamOptions,
+    // Present iff this builds a revertable group's fallback branch.
+    groupFallback?: { executorIsDestReceiverOnGroupPrimary: boolean },
+  ): Promise<{
+    dexParams: DexExchangeParamWithBooleanNeedWrapNative;
+    wethDeposit: bigint;
+    wethWithdraw: bigint;
+  }> {
+    const side = priceRoute.side;
+    const newDex = this.findNewDex(se.exchange);
+    const executorAddress = bytecodeBuilder.getAddress();
+
+    let dexNeedWrapNative: boolean;
+    let dex: IDexTxBuilder<any, any> | undefined;
+    if (newDex) {
+      dexNeedWrapNative = newDex.needWrapNative;
+    } else {
+      dex = this.dexAdapterService.getTxBuilderDexByKey(se.exchange);
+      dexNeedWrapNative =
+        typeof dex.needWrapNative === 'function'
+          ? dex.needWrapNative(priceRoute, swap, se)
+          : dex.needWrapNative;
+    }
+
+    const {
+      srcToken,
+      destToken,
+      srcAmount,
+      destAmount,
+      recipient,
+      wethDeposit,
+      wethWithdraw,
+    } = this.getDexCallsParams(
+      priceRoute,
+      routeIndex,
+      swap,
+      swapIndex,
+      se,
+      minMaxAmount,
+      dexNeedWrapNative,
+      executorAddress,
+      groupFallback,
+    );
+
+    // A needUnwrapNative dex must self-normalize on WETH-dest hops to be
+    // group-fallback-safe: deliver on the executor with
+    // dexFuncHasRecipient=false (see FluidDex).
+    let dexParams: DexExchangeParam;
+    if (newDex) {
+      dexParams = await this.fetchRemoteDexParam({
+        dexKey: newDex.key,
+        srcToken,
+        destToken,
+        srcAmount: side === SwapSide.BUY ? se.srcAmount : srcAmount,
+        destAmount,
+        recipient,
+        data: se.data,
+        side,
+        executorAddress,
+        options: getDexParamOptions,
+      });
+
+      // The local `newDexs[*].needWrapNative` is the single source of truth:
+      // it already drove `getDexCallsParams` (and therefore `wethDeposit`/
+      // `wethWithdraw`). Keep the executor builder in lockstep so the wrap
+      // accounting and the bytecode wiring can't diverge.
+      dexParams.needWrapNative = newDex.needWrapNative;
+    } else {
+      dexParams = await dex!.getDexParam!(
+        srcToken,
+        destToken,
+        side === SwapSide.BUY ? se.srcAmount : srcAmount, // in other case we would not be able to make insert from amount on Ex3
+        destAmount,
+        recipient,
+        se.data,
+        side,
+        executorAddress,
+        getDexParamOptions,
+      );
+    }
+    if (typeof dexParams.needWrapNative === 'function') {
+      dexParams.needWrapNative = dexParams.needWrapNative(priceRoute, swap, se);
+    }
+
+    // The fallback was redirected onto the executor: the flag builders must
+    // balance-check its output so the route-level forward gets the real
+    // amount. Never set on primaries.
+    if (groupFallback?.executorIsDestReceiverOnGroupPrimary) {
+      dexParams.executorIsDestReceiver = true;
+    }
+
+    return {
+      dexParams: <DexExchangeParamWithBooleanNeedWrapNative>dexParams,
+      wethDeposit,
+      wethWithdraw,
+    };
+  }
+
+  // Turn a fallback DexExchangeParam into a DexExchangeBuildParam with its
+  // own approval, checked separately from the primaries' batch.
+  private async buildFallbackBuildParam(
+    bytecodeBuilder: ExecutorBytecodeBuilder,
+    swap: OptimalSwap,
+    dexParams: DexExchangeParamWithBooleanNeedWrapNative,
+  ): Promise<DexExchangeBuildParam> {
+    const approveParams = bytecodeBuilder.getApprovalTokenAndTarget(
+      swap,
+      dexParams,
+    );
+
+    if (!approveParams) {
+      return { ...dexParams };
+    }
+
+    const spender = bytecodeBuilder.getAddress();
+    const [alreadyApproved] = this.skipApprovalCheck
+      ? [false]
+      : await this.dexAdapterService.dexHelper.augustusApprovals.hasApprovals(
+          spender,
+          [
+            [
+              approveParams.token,
+              approveParams.target,
+              !!dexParams.permit2Approval,
+            ],
+          ],
+        );
+
+    return alreadyApproved
+      ? { ...dexParams }
+      : {
+          ...dexParams,
+          approveData: {
+            token: approveParams.token,
+            target: approveParams.target,
+          },
+        };
   }
 
   private async addDexExchangeApproveParams(

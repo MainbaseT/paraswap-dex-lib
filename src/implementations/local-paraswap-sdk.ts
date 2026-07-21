@@ -62,6 +62,10 @@ export class LocalParaswapSDK implements IParaSwapSDK {
   dexKeys: string[];
   transactionBuilder: GenericSwapTransactionBuilder;
   transactionBuilderV5: TransactionBuilder;
+  // When true, buildTransaction skips per-dex preProcessTransaction hooks.
+  // Lets tests hand-craft swapExchange data (e.g. a fabricated firm quote)
+  // without it being overwritten by a live quote fetch.
+  skipPreProcess = false;
 
   constructor(
     protected network: number,
@@ -260,7 +264,11 @@ export class LocalParaswapSDK implements IParaSwapSDK {
                     se.exchange,
                   );
 
-                  if (dexLibExchange && dexLibExchange.preProcessTransaction) {
+                  if (
+                    !this.skipPreProcess &&
+                    dexLibExchange &&
+                    dexLibExchange.preProcessTransaction
+                  ) {
                     const dexNeedWrapNative =
                       typeof dex.needWrapNative === 'function'
                         ? dex.needWrapNative(priceRoute, swap, se)
