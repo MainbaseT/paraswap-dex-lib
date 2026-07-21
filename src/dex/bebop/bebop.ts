@@ -478,6 +478,7 @@ export class Bebop
           exchange: this.dexKey,
           gasCost: BEBOP_GAS_COST,
           poolAddresses: [this.settlementAddress],
+          targetExchange: this.settlementAddress,
         },
       ];
     } catch (e: unknown) {

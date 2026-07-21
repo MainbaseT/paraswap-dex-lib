@@ -517,6 +517,7 @@ export class Hashflow
             this.getPoolIdentifier(_srcToken.address, _destToken.address, mm),
           ],
           poolAddresses: [this.routerAddress],
+          targetExchange: this.routerAddress,
         } as PoolPrices<HashflowData>;
       });
 

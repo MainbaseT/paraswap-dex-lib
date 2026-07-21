@@ -215,6 +215,7 @@ export class GenericRFQ extends ParaSwapLimitOrders {
         exchange: this.dexKey,
         poolIdentifiers: [expectedIdentifier],
         poolAddresses: [this.augustusRFQAddress],
+        targetExchange: this.augustusRFQAddress,
         prices: outputs,
         unit,
         data: {

@@ -249,6 +249,10 @@ export type PoolPrices<T> = {
   calldataGasCost?: number | number[];
   poolAddresses?: Array<Address>;
   poolIdentifiers?: Array<string>;
+  // The contract the swap call targets (router/settlement) — lets analytics
+  // attribute on-chain reverts to a venue. Optional; populated by firm-quote
+  // dexes whose target is known at pricing time.
+  targetExchange?: Address;
 };
 
 export type ConnectorToken = Token & { liquidityUSD?: number };
